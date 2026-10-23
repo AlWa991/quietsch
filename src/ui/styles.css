@@ -1,0 +1,42 @@
+:root {
+  --bg: #07090f;
+  --glass: rgba(14, 18, 28, 0.72);
+  --accent: #ff9b3d;
+  --chicken: #ffd23f;
+  --cold: #8fb3c9;
+  --danger: #ff4d6d;
+  --font-pixel: 'Pixelify Sans', 'Courier New', monospace;
+  --font-ui: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--cold);
+  font-family: var(--font-ui);
+}
+
+#game {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+#ui {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
