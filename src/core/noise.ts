@@ -4,8 +4,11 @@
 import type { SpookMode } from './spook-fsm';
 import type { SpookKind } from './types';
 
-/** Where a sonar ring came from. Only the chicken's own scream can pacify. */
-export type NoiseSource = 'scream' | 'echo';
+/**
+ * Where a noise came from: the chicken's scream, a toy box echo or a squeak of the Köder.
+ * Only the chicken's own scream can pacify; everything else just attracts.
+ */
+export type NoiseSource = 'scream' | 'echo' | 'bait';
 
 /** Light sources as bit flags; `lights` values are OR-ed masks. */
 export const LIGHT = {

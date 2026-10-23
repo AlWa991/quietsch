@@ -10,6 +10,7 @@ import {
   sonarRadius,
 } from '@/core/sonar';
 import type { RevealSystem, Revealable } from '@/render/reveal';
+import type { NoiseSource } from '@/core/noise';
 
 const RING_VERT = /* glsl */ `
   varying vec2 vUv;
@@ -90,17 +91,18 @@ interface Ring {
   prevFront: number;
   combo: number;
   comboDone: boolean;
-  /** Fired by an object (toy box echo), not by the chicken. */
-  echo: boolean;
+  /** Who made the noise (scream, toy box echo, Köder squeak). */
+  source: NoiseSource;
 }
 
 export interface FireOptions {
   /** Upgrade stats (Große Lunge). */
   maxRadius?: number;
   maxHold?: number;
-  /** Fixed radius override (echo rings). */
+  /** Fixed radius override (echo / bait rings). */
   radius?: number;
-  echo?: boolean;
+  /** Default 'scream'. Echo and bait rings are yellow; bait rings pay no feathers. */
+  source?: NoiseSource;
 }
 
 export interface SonarHooks {
@@ -109,8 +111,8 @@ export interface SonarHooks {
   /** Combo bonus at the end of a scream with >= 2 first-time reveals. */
   onCombo(count: number, bonus: number, x: number, z: number): void;
   /** Ring front passed a spook. */
-  onSpookHeard(r: Revealable, originX: number, originZ: number, echo: boolean): void;
-  /** Ring front passed any prop (every time, not only the first). */
+  onSpookHeard(r: Revealable, originX: number, originZ: number, source: NoiseSource): void;
+  /** Ring front passed any prop (every time, not only the first). `echo` = not the chicken. */
   onPropHit(r: Revealable, echo: boolean): void;
 }
 
@@ -156,7 +158,7 @@ export function createSonarSystem(
       prevFront: 0,
       combo: 0,
       comboDone: false,
-      echo: false,
+      source: 'scream',
     });
   }
 
@@ -186,8 +188,8 @@ export function createSonarSystem(
       ring.prevFront = 0;
       ring.combo = 0;
       ring.comboDone = false;
-      ring.echo = opts?.echo === true;
-      ring.mat.uniforms.uColor!.value = ring.echo ? echoColor : color;
+      ring.source = opts?.source ?? 'scream';
+      ring.mat.uniforms.uColor!.value = ring.source === 'scream' ? color : echoColor;
       ring.mesh.visible = true;
       ring.mesh.position.set(x, 0.04, z);
       ring.mesh.scale.set(max + 0.5, 1, max + 0.5);
@@ -220,10 +222,11 @@ export function createSonarSystem(
           const d = distToRect(ring.x, ring.z, r.minX, r.minZ, r.maxX, r.maxZ);
           if (!crossed(d, ring.prevFront, front) && !(ring.prevFront === 0 && d === 0)) continue;
           reveal.hit(r);
-          if (r.kind === 'spook') hooks.onSpookHeard(r, ring.x, ring.z, ring.echo);
+          if (r.kind === 'spook') hooks.onSpookHeard(r, ring.x, ring.z, ring.source);
           else if (r.kind === 'prop') {
-            hooks.onPropHit(r, ring.echo);
-            if (!r.rewarded) {
+            hooks.onPropHit(r, ring.source !== 'scream');
+            // The Köder reveals but never pays: feathers stay a reward for screaming.
+            if (!r.rewarded && ring.source !== 'bait') {
               r.rewarded = true;
               ring.combo++;
               hooks.onFirstReveal(r, ring.combo);

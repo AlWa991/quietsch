@@ -464,7 +464,7 @@ export function createMissions(d: MissionDeps): Missions {
         lastEcho = time;
         const ans = answerBox();
         if (ans && !m().echo.done) {
-          d.sonar.fire(0, ans.x, ans.z, { radius: ECHO_RADIUS, echo: true });
+          d.sonar.fire(0, ans.x, ans.z, { radius: ECHO_RADIUS, source: 'echo' });
           sfx.echo(0);
           ans.pulse();
         }

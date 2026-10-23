@@ -270,6 +270,13 @@ export const sfx = {
     tone(bus, { type: 'sawtooth', f0: 90, f1: 45, dur: 0.5, gain: 0.3 });
   },
 
+  /** Quick whoosh: the Köder leaves the beak. */
+  toss(): void {
+    const bus = getBus();
+    if (!bus) return;
+    tone(bus, { type: 'triangle', f0: 300, f1: 900, dur: 0.12, gain: 0.14 });
+  },
+
   /** Warm rising chime: a spook turns peaceful. */
   peaceful(): void {
     const bus = getBus();

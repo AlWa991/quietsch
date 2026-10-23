@@ -123,7 +123,6 @@ export const SHOP_ITEMS: readonly ShopItem[] = [
     price: 150,
     text: 'Neue Taste (Shift). Wirft einen Ball, der alles ablenkt.',
     kind: 'bait',
-    comingSoon: true,
   },
   {
     id: 'hexenhut',

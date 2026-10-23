@@ -54,3 +54,32 @@ export function createBattery(root: HTMLElement): BatteryHud {
     },
   };
 }
+
+export interface BaitHud {
+  /** `ready` 0..1 = cooldown progress (1 = can throw). */
+  set(visible: boolean, ready: number): void;
+}
+
+/** Köder chip (bottom left, above the battery): Shift key + ball with a cooldown sweep. */
+export function createBaitHud(root: HTMLElement): BaitHud {
+  const node = el('div', 'q-bait');
+  const key = el('span', 'q-prompt__key q-bait__key', '⇧');
+  const ball = el('div', 'q-bait__ball');
+  node.append(key, ball);
+  node.hidden = true;
+  node.title = 'Köder';
+  root.append(node);
+  let lastVisible = false;
+  let lastReady = -1;
+  return {
+    set(visible, ready) {
+      const q = Math.round(ready * 24);
+      if (visible === lastVisible && q === lastReady) return;
+      lastVisible = visible;
+      lastReady = q;
+      node.hidden = !visible;
+      ball.style.setProperty('--ready', String(q / 24));
+      node.classList.toggle('q-bait--ready', q === 24);
+    },
+  };
+}

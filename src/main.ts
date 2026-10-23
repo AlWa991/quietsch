@@ -29,14 +29,14 @@ import { showStoryCard } from './ui/story-card';
 import { showTitle } from './ui/title';
 import { createPause, createShop } from './ui/shop';
 import { showChoice, showEnding, type Choice } from './ui/results';
-import { createBattery, createPrompt } from './ui/prompt';
+import { createBaitHud, createBattery, createPrompt } from './ui/prompt';
 import { PROMPT, rankName, STORY_CARDS, T } from './ui/texts';
 import { buildHouse, placeProps } from './world/builder';
 import { HOUSE_ASCII, HOUSE_ROOMS, roomIdAt, SOFA_SPOTS } from './world/house-map';
 import { createChickenEntity } from './entities/chicken';
 import { createHat } from './entities/hats';
 import { createCameraRig } from './systems/camera';
-import { boxFree, moveAndSlide, type CollisionGrid } from './systems/collision';
+import { boxFree, isBlocked, moveAndSlide, type CollisionGrid } from './systems/collision';
 import { createInput } from './systems/input';
 import { createLightning } from './systems/lightning';
 import { createSonarSystem } from './systems/sonar';
@@ -44,6 +44,8 @@ import { createSpookManager } from './systems/spooks';
 import { createProgress } from './systems/progress';
 import { createMissions, type Objective } from './systems/missions';
 import { createFlashlight } from './systems/flashlight';
+import { createBaitSystem } from './systems/bait';
+import { BAIT } from './core/bait';
 import { createAmbience } from './audio/ambience';
 import { installAudioUnlock } from './audio/context';
 import { sfx } from './audio/sfx';
@@ -63,6 +65,8 @@ export interface GameActions {
   chooseEnding(choice: EndingId): void;
   /** Snapshot of every spook (e2e / playtests). */
   spooks(): SpookInfo[];
+  /** Köder state: phase and landing point. */
+  bait(): { phase: string; x: number; z: number; squeaks: number };
 }
 
 export interface SpookInfo {
@@ -118,6 +122,7 @@ function boot(root: HTMLElement): void {
   const reveal = new RevealSystem();
   const prompt = createPrompt(root);
   const battery = createBattery(root);
+  const baitHud = createBaitHud(root);
 
   installAudioUnlock();
   const ambience = createAmbience();
@@ -196,6 +201,7 @@ function boot(root: HTMLElement): void {
       store.emit({ type: 'pickup', itemId: id });
       store.emit({ type: 'feathers', amount: 0 });
       sfx.buy();
+      if (id === 'koeder') ui.toast(T.bait, T.baitSub);
       applyLoadout();
       progress.save();
     },
@@ -299,6 +305,9 @@ function boot(root: HTMLElement): void {
   /** Spooks from the map (wrong-box socks spawn later and are not persisted). */
   const baseSpooks = spooks.list.length;
 
+  // The Köder flies over furniture, not through walls.
+  const bait = createBaitSystem(ctx.scene, (x, z) => !isBlocked(wallsOnly, x, z));
+
   // --- Sonar / lightning / missions ---------------------------------------------------
   const floorMask = { texture: house.floorMask, width: map.width, height: map.height };
   // Late-bound: sonar hooks need missions, missions need sonar.
@@ -318,7 +327,7 @@ function boot(root: HTMLElement): void {
       sfx.combo(count);
       if (count >= 3) ui.toast(`×${count}!`, `+${bonus} Federn`);
     },
-    onSpookHeard(r, ox, oz, echo) {
+    onSpookHeard(r, ox, oz, source) {
       const s = spooks.byReveal(r);
       if (!s || !missionsRef) return;
       const t = ctx.clock.elapsedTime;
@@ -330,7 +339,7 @@ function boot(root: HTMLElement): void {
         chicken.pos.z,
         chicken.facing,
       );
-      if (spooks.heard(s, ox, oz, echo ? 'echo' : 'scream', lights)) {
+      if (spooks.heard(s, ox, oz, source, lights)) {
         ui.toast(T.peaceful, T.peacefulSub);
         sfx.peaceful();
       }
@@ -491,6 +500,14 @@ function boot(root: HTMLElement): void {
     } else if (code === 'Escape') {
       if (atKorb()) shop.open();
       else pause.open();
+    } else if (code === 'ShiftLeft' || code === 'ShiftRight') {
+      if (
+        (store.get().upgrades.koeder ?? 0) > 0 &&
+        bait.throw(chicken.pos.x, chicken.pos.z, chicken.facing)
+      ) {
+        sfx.toss();
+        chicken.kick(0.12);
+      }
     } else if (code === 'KeyF') {
       if (flashlight.owned) {
         flashlight.toggle();
@@ -684,6 +701,12 @@ function boot(root: HTMLElement): void {
     battery.set(flashlight.owned && phase === 'play', flashlight.battery, flashlight.on);
 
     missions.update(dt, time);
+    if (bait.update(active ? dt : 0, time)) {
+      // Each squeak is a noise source: spooks in range walk/drive to the ball like to a scream.
+      sonar.fire(0, bait.state.toX, bait.state.toZ, { radius: BAIT.radius, source: 'bait' });
+      sfx.echo(0);
+    }
+    baitHud.set(phase === 'play' && (store.get().upgrades.koeder ?? 0) > 0, bait.ready);
     lightning.update(dt, chicken.pos.x, chicken.pos.z);
     if (fog) {
       const want = room === 'keller' ? FOG_KELLER : FOG_HOUSE;
@@ -734,6 +757,12 @@ function boot(root: HTMLElement): void {
         targetZ: s.targetZ,
         peaceful: s.peaceful,
       })),
+    bait: () => ({
+      phase: bait.state.phase,
+      x: bait.state.toX,
+      z: bait.state.toZ,
+      squeaks: bait.state.squeaksDone,
+    }),
     chooseEnding: (id) => {
       if (phase !== 'finale' && phase !== 'choice') return;
       forcedEnding = id;

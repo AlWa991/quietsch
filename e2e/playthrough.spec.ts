@@ -279,3 +279,46 @@ test('geisterlichter: a scream in lightning pacifies a sofa hand', async ({ page
   await page.screenshot({ path: `${SHOT}/peaceful.png` });
   expect(errors).toEqual([]);
 });
+
+test('köder: bought in the shop, Shift throws, a sock goes for the ball', async ({ page }) => {
+  const errors = collectErrors(page);
+  await boot(page);
+  await startPlay(page);
+  await page.evaluate(() => window.__game?.actions?.giveFeathers(200));
+  await page.evaluate(() => window.__game?.actions?.openShop());
+  await page.locator('[data-testid="shop-item-koeder"]').click();
+  await page.waitForFunction(() => (window.__game?.state.upgrades.koeder ?? 0) === 1);
+  await page.locator('[data-testid="shop-close"]').click();
+  await expect(page.locator('.q-bait')).toBeVisible();
+
+  // Kinderzimmer, facing west: the ball lands ~5 m to the left, near the first sock.
+  await page.evaluate(() => window.__game?.actions?.warp(11.5, 17.5));
+  await page.waitForTimeout(500);
+  await closeCards(page);
+  await page.keyboard.down('KeyA');
+  await page.waitForTimeout(150);
+  await page.keyboard.up('KeyA');
+  await page.waitForTimeout(400);
+  await page.keyboard.press('Shift');
+  await page.waitForFunction(
+    () => (window.__game?.actions?.bait().squeaks ?? 0) >= 1,
+    undefined,
+    WAIT,
+  );
+  await expect(page.locator('.q-bait')).not.toHaveClass(/q-bait--ready/);
+  await page.waitForTimeout(200);
+  await page.screenshot({ path: `${SHOT}/koeder.png` });
+  await page.waitForFunction(
+    () => {
+      const g = window.__game?.actions;
+      const b = g?.bait();
+      if (!g || !b) return false;
+      return g
+        .spooks()
+        .some((s) => s.kind === 'socke' && Math.hypot(s.targetX - b.x, s.targetZ - b.z) < 0.3);
+    },
+    undefined,
+    WAIT,
+  );
+  expect(errors).toEqual([]);
+});

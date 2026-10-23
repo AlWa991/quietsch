@@ -78,6 +78,7 @@ export const TITLE = {
     ['Leertaste halten', 'Schrei (Sichtweite)'],
     ['E', 'interagieren'],
     ['F', 'Taschenlampe'],
+    ['Shift', 'Köder werfen (Shop)'],
     ['Esc', 'Pause / Shop im Korb'],
   ] as const,
   play: 'Spielen',
@@ -126,6 +127,8 @@ export const T = {
   crownSub: '+3 Geisterlichter',
   chest: 'Federtruhe!',
   chestSub: (n: number): string => `+${n} Federn`,
+  bait: 'Quietschball!',
+  baitSub: 'Shift: werfen. Spuks laufen zum Quietschen.',
 } as const;
 
 /** Prompt verbs shown as "E: <verb>". */
