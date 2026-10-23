@@ -65,8 +65,13 @@ export const STORY_CARDS: Record<CardId, StoryCardText> = {
   },
   panic: {
     title: 'Panik!',
-    text: 'Zurück im Korb. Herzen regenerieren.',
+    text: 'Zurück im Korb. Alle Herzen wieder voll.',
     button: 'Durchatmen',
+  },
+  peaceHint: {
+    title: 'Das Nachtlicht',
+    text: 'Spuk im Licht anschreien = befrieden.',
+    button: 'Verstanden',
   },
 };
 

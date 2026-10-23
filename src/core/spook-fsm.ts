@@ -198,9 +198,16 @@ export function wakeRudi(s: SpookState): void {
   s.wake = RUDI.wakeTime;
 }
 
-/** Scripted scare: the hand bursts out without being able to catch. */
-export function popHand(s: SpookState): void {
+/**
+ * Scripted scare: the hand bursts out without being able to catch, optionally at (x, z) right
+ * next to the chicken; it sinks back to its sofa afterwards.
+ */
+export function popHand(s: SpookState, x?: number, z?: number): void {
   if (s.kind !== 'hand' || isPeaceful(s)) return;
+  if (x !== undefined && z !== undefined) {
+    s.x = x;
+    s.z = z;
+  }
   s.mode = 'alert';
   s.timer = 0.05;
   s.scare = true;
@@ -321,6 +328,8 @@ function stepHand(s: SpookState, input: SpookInput): SpookEvent {
       if (s.timer <= 0) {
         s.mode = 'wander';
         s.scare = false;
+        s.x = s.homeX;
+        s.z = s.homeZ;
       }
       break;
   }

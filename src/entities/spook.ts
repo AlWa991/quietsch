@@ -146,14 +146,15 @@ const rudiBodyGeo = new THREE.CylinderGeometry(0.34, 0.38, 0.42, 10);
 const rudiLidGeo = new THREE.SphereGeometry(0.34, 10, 5, 0, Math.PI * 2, 0, Math.PI / 2);
 const rudiHoseGeo = new THREE.TorusGeometry(0.28, 0.045, 5, 10, Math.PI * 1.1);
 const rudiNozzleGeo = new THREE.BoxGeometry(0.42, 0.06, 0.16);
-const rudiEyeGeo = new THREE.SphereGeometry(0.07, 8, 6);
+const rudiEyeGeo = new THREE.SphereGeometry(0.085, 8, 6);
+const rudiGlowGeo = new THREE.RingGeometry(0.36, 0.62, 20);
 
 function createRudi(x: number, z: number, reveal: RevealSystem): Spook {
   const state = createSpook(x, z, 'rudi');
   const object = new THREE.Group();
   const shell = new THREE.MeshStandardMaterial({
     color: 0x5a1e24,
-    emissive: 0x2a0508,
+    emissive: 0x5a0e16,
     emissiveIntensity: 0.6,
     roughness: 0.5,
     flatShading: true,
@@ -164,6 +165,15 @@ function createRudi(x: number, z: number, reveal: RevealSystem): Spook {
     flatShading: true,
   });
   const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff2030, toneMapped: false });
+  // Motor glow on the floor around the base: the silhouette reads even in the dark.
+  const glowMat = new THREE.MeshBasicMaterial({
+    color: 0xff3a20,
+    transparent: true,
+    opacity: 0,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    toneMapped: false,
+  });
   const inner = new THREE.Group();
   const body = new THREE.Mesh(rudiBodyGeo, shell);
   body.position.y = 0.25;
@@ -175,10 +185,19 @@ function createRudi(x: number, z: number, reveal: RevealSystem): Spook {
   hose.rotation.y = Math.PI / 2;
   const nozzle = new THREE.Mesh(rudiNozzleGeo, dark);
   nozzle.position.set(0, 0.04, 0.55);
-  const eye = new THREE.Mesh(rudiEyeGeo, eyeMat);
-  eye.position.set(0, 0.36, 0.33);
-  eye.userData.noReveal = true;
-  inner.add(body, lid, hose, nozzle, eye);
+  const eye = new THREE.Group();
+  for (const ex of [-0.13, 0.13]) {
+    const e = new THREE.Mesh(rudiEyeGeo, eyeMat);
+    e.position.set(ex, 0.36, 0.34);
+    e.scale.set(1.3, 0.8, 0.6);
+    e.userData.noReveal = true;
+    eye.add(e);
+  }
+  const glow = new THREE.Mesh(rudiGlowGeo, glowMat);
+  glow.rotation.x = -Math.PI / 2;
+  glow.position.y = 0.03;
+  glow.userData.noReveal = true;
+  inner.add(body, lid, hose, nozzle, eye, glow);
   object.add(inner);
   // Red eye light: the only thing you see of Rudi in the dark.
   const light = new THREE.PointLight(0xff2030, 0, 3.5, 1.6);
@@ -204,12 +223,20 @@ function createRudi(x: number, z: number, reveal: RevealSystem): Spook {
       reveal.setBounds(rev, state.x, state.z, 0.4);
       self.dist = Math.hypot(cx - state.x, cz - state.z);
       eye.visible = awake;
+      glowMat.opacity = !awake
+        ? 0
+        : state.peaceful
+          ? 0.35
+          : driving
+            ? 0.75 + Math.sin(time * 24) * 0.2
+            : 0.3 + Math.sin(time * 3) * 0.08;
       if (state.peaceful !== wasPeaceful) {
         // Peaceful Rudi: warm lamp instead of the red eye, shell glows amber.
         wasPeaceful = state.peaceful;
         light.color.setHex(wasPeaceful ? 0xffb060 : 0xff2030);
         eyeMat.color.setHex(wasPeaceful ? 0xffd090 : 0xff2030);
-        shell.emissive.setHex(wasPeaceful ? 0x8a4a10 : 0x2a0508);
+        glowMat.color.setHex(wasPeaceful ? 0xffb060 : 0xff3a20);
+        shell.emissive.setHex(wasPeaceful ? 0x8a4a10 : 0x5a0e16);
       }
       light.intensity = !awake
         ? 0
@@ -259,7 +286,9 @@ function createHand(x: number, z: number, reveal: RevealSystem): Spook {
   object.position.set(x, 0, z);
   const rev = reveal.add(object, 'spook', 'hand');
   let rise = 0;
+  let size = 1;
   let wasPeaceful = false;
+  let wasScare = false;
 
   const self: Spook = {
     state,
@@ -273,16 +302,29 @@ function createHand(x: number, z: number, reveal: RevealSystem): Spook {
       rise += (want - rise) * (1 - Math.exp(-speed * dt));
       const peaceful = state.peaceful;
       if (peaceful) rise = 1;
-      if (peaceful !== wasPeaceful) {
+      // The scripted scare hand is huge and pale-bright; it shrinks back once it sinks.
+      const scare = state.scare && !peaceful;
+      size += ((scare ? 1.9 : 1) - size) * (1 - Math.exp(-(scare ? 14 : 3) * dt));
+      object.scale.setScalar(size);
+      if (peaceful !== wasPeaceful || scare !== wasScare) {
         // Peaceful hand: warm skin glow, fully out of the floor, waddling after the chicken.
         wasPeaceful = peaceful;
-        skin.emissive.setHex(peaceful ? 0xc07a30 : 0x506a58);
-        skin.emissiveIntensity = peaceful ? 0.9 : 0.7;
+        wasScare = scare;
+        skin.emissive.setHex(peaceful ? 0xc07a30 : scare ? 0x8fbf9c : 0x506a58);
+        skin.emissiveIntensity = peaceful ? 0.9 : scare ? 0.8 : 0.7;
       }
-      object.position.set(state.x, -1.25 + rise * 1.25, state.z);
-      object.rotation.y = state.heading;
-      // Lunge towards the chicken while grabbing, tremble while emerging.
-      arm.rotation.x = m === 'chase' ? 0.7 : m === 'alert' ? Math.sin(time * 40) * 0.08 : 0;
+      object.position.set(state.x, (-1.25 + rise * 1.25) * size, state.z);
+      // Scare: the hand faces the camera (leaning away from it, perpendicular to the view) so
+      // the whole palm and fingers fill the screen. Otherwise lunge towards the chicken while
+      // grabbing and tremble while emerging.
+      object.rotation.y = scare ? 0 : state.heading;
+      arm.rotation.x = scare
+        ? -0.8 + Math.sin(time * 30) * 0.05
+        : m === 'chase'
+          ? 0.7
+          : m === 'alert'
+            ? Math.sin(time * 40) * 0.08
+            : 0;
       arm.rotation.z = peaceful && m === 'follow' ? Math.sin(time * 7) * 0.18 : 0;
       reveal.setBounds(rev, state.x, state.z, 0.4);
       self.dist = Math.hypot(cx - state.x, cz - state.z);

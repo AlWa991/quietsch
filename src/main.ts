@@ -105,6 +105,11 @@ declare global {
 }
 
 const KORB_REACH = 1.6;
+/** The Panik card closes by itself after this long. */
+const PANIC_CARD_MS = 1500;
+/** Geisterlicht tutorial: a sock chasing within this distance into the Flur triggers it. */
+const PEACE_HINT_DIST = 9;
+const NIGHT_PULSE = 5;
 
 const params = new URLSearchParams(window.location.search);
 const uiRoot = document.getElementById('ui');
@@ -163,6 +168,8 @@ function boot(root: HTMLElement): void {
   const nightCell = lightCells.find((c) => roomIdAt(c.x, c.y) === 'flur');
   const fridgeCell = lightCells.find((c) => roomIdAt(c.x, c.y) === 'kueche') ?? { x: 45, y: 14 };
   let nightLight: { x: number; z: number } | null = null;
+  let nightLamp: THREE.PointLight | null = null;
+  let nightPulse = 0;
   if (nightCell) {
     nightLight = { x: nightCell.x + 0.5, z: nightCell.y + 0.5 };
     const night = new THREE.PointLight(0xffa860, 3.5, 4.5, 1.3);
@@ -173,6 +180,7 @@ function boot(root: HTMLElement): void {
     );
     bulb.position.copy(night.position);
     ctx.scene.add(night, bulb);
+    nightLamp = night;
   }
 
   const korb = house.korb;
@@ -200,7 +208,7 @@ function boot(root: HTMLElement): void {
     cardsOpen++;
     store.emit({ type: 'story-card', cardId: id });
     cardChain = cardChain
-      .then(() => showStoryCard(text))
+      .then(() => showStoryCard(text, id === 'panic' ? PANIC_CARD_MS : 0))
       .then(() => {
         cardsOpen--;
       });
@@ -293,6 +301,9 @@ function boot(root: HTMLElement): void {
       const sz = s.state.z;
       afterFreeze = () => {
         if (res.panic) {
+          // Hearts are full right away; the card holds the chicken for a breath (1.5 s).
+          store.set({ hearts: store.get().maxHearts });
+          ui.hud.sync();
           teleportTo(korb.x + 0.9, korb.z - 0.6);
           void card('panic');
         } else {
@@ -391,6 +402,7 @@ function boot(root: HTMLElement): void {
     fridgeLight: { x: fridgeCell.x + 0.5, z: fridgeCell.y + 0.5 },
     card,
     shake: (a, t) => rig.shake(a, t),
+    punch: (deg) => rig.punch(deg),
     startFinale: () => startFinale(),
     openPassage(cx, cy) {
       const i = cy * map.width + cx;
@@ -493,7 +505,12 @@ function boot(root: HTMLElement): void {
       origin: { x: chicken.pos.x, y: chicken.pos.z },
       strength: radius / st.maxRadius,
     });
-    missions.onScream(ctx.clock.elapsedTime, roomIdAt(chicken.pos.x, chicken.pos.z));
+    missions.onScream(
+      ctx.clock.elapsedTime,
+      roomIdAt(chicken.pos.x, chicken.pos.z),
+      chicken.pos.x,
+      chicken.pos.z,
+    );
     if (hold < SONAR.tapThreshold) {
       sfx.squeak();
       chicken.kick(0.18);
@@ -726,6 +743,22 @@ function boot(root: HTMLElement): void {
         shownProgress = prog;
         if (text === '') ui.hideMission();
         else ui.showMission(text, prog, hasObj ? objective.goal : 3);
+      }
+
+      // Geisterlicht tutorial: the first sock chasing the chicken into the Flur. Once.
+      if (room === 'flur' && nightLamp && !store.get().flags['card:peaceHint']) {
+        for (const sp of spooks.list) {
+          const st = sp.state;
+          if (st.kind === 'socke' && st.mode === 'chase' && sp.dist < PEACE_HINT_DIST) {
+            nightPulse = NIGHT_PULSE;
+            void card('peaceHint');
+            break;
+          }
+        }
+      }
+      if (nightLamp && nightPulse > 0) {
+        nightPulse = Math.max(0, nightPulse - dt);
+        nightLamp.intensity = 3.5 + (nightPulse > 0 ? 5 * Math.abs(Math.sin(time * 5)) : 0);
       }
 
       const s = store.get();

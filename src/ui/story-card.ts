@@ -6,11 +6,15 @@ export function mountStoryCardHost(root: HTMLElement): void {
   host = root;
 }
 
-export function showStoryCard(card: {
-  title: string;
-  text: string;
-  button?: string;
-}): Promise<void> {
+/** Shows a modal card; `autoCloseMs` > 0 closes it by itself (Panik). */
+export function showStoryCard(
+  card: {
+    title: string;
+    text: string;
+    button?: string;
+  },
+  autoCloseMs = 0,
+): Promise<void> {
   const parent = host;
   if (!parent) return Promise.resolve();
   return new Promise<void>((resolve) => {
@@ -49,5 +53,6 @@ export function showStoryCard(card: {
     btn.addEventListener('click', close);
     parent.appendChild(overlay);
     btn.focus({ preventScroll: true });
+    if (autoCloseMs > 0) window.setTimeout(close, autoCloseMs);
   });
 }

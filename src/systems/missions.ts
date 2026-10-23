@@ -52,6 +52,9 @@ const FRIDGE_RADIUS = 3.2;
 const FLASH_LIT = 1.2;
 /** Seconds between the hollow wall's outline pulses. */
 const PULSE_GAP = 0.3;
+/** Scripted hand scare: pops this far from the chicken, lit by a cold flash for SCARE_TIME. */
+const SCARE_DIST = 1.7;
+const SCARE_TIME = 1.1;
 
 export interface MissionDeps {
   scene: THREE.Scene;
@@ -69,6 +72,8 @@ export interface MissionDeps {
   /** Show a story card once (or always with force). */
   card(id: CardId, force?: boolean): Promise<void>;
   shake(amount: number, seconds: number): void;
+  /** Camera FOV punch (degrees, negative = zoom in). */
+  punch(deg: number): void;
   /** Start the finale (front door with all locks open). */
   startFinale(): void;
   /** Unblock a wall cell for chicken, spooks and the sonar floor mask. */
@@ -95,8 +100,8 @@ export interface Missions {
   interact(it: Interactable): void;
   /** Sonar ring passed a prop. */
   onPropHit(r: Revealable, echo: boolean, time: number): void;
-  /** Chicken screamed (any length). */
-  onScream(time: number, roomId: string | null): void;
+  /** Chicken screamed (any length) at (cx, cz). */
+  onScream(time: number, roomId: string | null, cx: number, cz: number): void;
   onFlash(time: number, roomId: string | null): void;
   /** Lights shining on a point as a core/noise LIGHT mask (0 = dark). */
   lights(x: number, z: number, time: number, cx: number, cz: number, facing: number): number;
@@ -143,6 +148,12 @@ export function createMissions(d: MissionDeps): Missions {
   fridge.position.set(d.fridgeLight.x, 1.0, d.fridgeLight.z);
   d.scene.add(fridge);
   let flicker = -1;
+
+  // Cold light that makes the scripted hand scare readable (one shared light, off otherwise).
+  const scareLight = new THREE.PointLight(0xd8ffe4, 0, 6, 1.4);
+  d.scene.add(scareLight);
+  let scareHand: (typeof d.spooks.list)[number] | null = null;
+  let scareT = 0;
 
   let echoAt = -1;
   let lastEcho = -10;
@@ -432,7 +443,7 @@ export function createMissions(d: MissionDeps): Missions {
         }
       }
     },
-    onScream(time, roomId) {
+    onScream(time, roomId, cx, cz) {
       lastScream = time;
       if (roomId === 'wohnzimmer' && !store.get().flags['scare:hand']) {
         store.get().flags['scare:hand'] = true;
@@ -443,9 +454,17 @@ export function createMissions(d: MissionDeps): Missions {
           if (!best || s.dist < best.dist) best = s;
         }
         if (best) {
-          popHand(best.state);
+          // Right next to the chicken, on the line towards its sofa: close, bright, big.
+          const dx = best.state.x - cx;
+          const dz = best.state.z - cz;
+          const k = Math.min(1, SCARE_DIST / (Math.hypot(dx, dz) || 1));
+          popHand(best.state, cx + dx * k, cz + dz * k);
+          scareHand = best;
+          scareT = SCARE_TIME;
           sfx.handPop();
-          d.shake(0.3, 0.3);
+          sfx.lightningSting();
+          d.shake(0.5, 0.45);
+          d.punch(-8);
         }
       }
     },
@@ -514,6 +533,12 @@ export function createMissions(d: MissionDeps): Missions {
           sfx.echo(0);
           ans.pulse();
         }
+      }
+      if (scareT > 0 && scareHand) {
+        scareT = Math.max(0, scareT - dt);
+        scareLight.position.set(scareHand.state.x, 1.3, scareHand.state.z + 1.3);
+        scareLight.intensity = 9 * Math.min(1, scareT / (SCARE_TIME * 0.6));
+        d.reveal.hit(scareHand.reveal);
       }
       if (flicker > 0) {
         flicker = Math.max(0, flicker - dt);

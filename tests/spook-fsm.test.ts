@@ -170,6 +170,15 @@ describe('spook kinds rudi / hand / peaceful', () => {
     expect(s.mode).toBe('wander');
   });
 
+  it('popHand at a spot next to the chicken sinks back home afterwards', () => {
+    const s = createSpook(10, 10, 'hand');
+    popHand(s, 12, 11);
+    expect([s.x, s.z]).toEqual([12, 11]);
+    run(s, input(), 0.05 + HAND.grabTime + HAND.cooldown + 0.2);
+    expect(s.mode).toBe('wander');
+    expect([s.x, s.z]).toEqual([10, 10]);
+  });
+
   it('popHand scare cannot catch', () => {
     const s = createSpook(10, 10, 'hand');
     popHand(s);

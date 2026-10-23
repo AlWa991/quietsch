@@ -92,7 +92,7 @@ Stand: 2026-10-23 · Quelle: Projektplan (Abschnitt 2), ergänzt um Steuerung un
 - „Neuer Rang!“ (Toast mit Level-up-Fanfare)
 - „×3!“ (Combo-Anzeige)
 - „Gefangen! −1 Herz, −30 % Federn.“
-- „Zurück im Korb. Herzen regenerieren.“ (Panik-Zustand)
+- „Zurück im Korb. Alle Herzen wieder voll.“ (Panik-Karte, schließt nach 1,5 s selbst, ab P5)
 - „Schloss 1 von 3 offen“ (Tür-Fortschritt)
 - Missionsziele: „Finde den Schlüssel in der richtigen Kiste.“ · „Strom wieder an.“ · „Schrei die Uhr 3× im Blitz an.“ · „Halsband anlegen.“
 
@@ -135,3 +135,13 @@ Stand: 2026-10-23 · Quelle: Projektplan (Abschnitt 2), ergänzt um Steuerung un
 - **Geisterlichter voll (T15):** Schrei auf einen Spuk im Licht macht ihn friedlich (Toast „Friedlich“ / „Er folgt dir in den Korb.“, warmer Glockenton). Socken: jedes Licht (Nachtlicht, Kühlschrank, Blitz, Taschenlampe) · Rudi: Kühlschranklicht oder Taschenlampenkegel · Hände: nur Blitz. Friedliche Spuks leuchten warm (Socke amber, Rudi warmes Lämpchen statt rotem Auge, Hand bernstein und ganz aus dem Boden), folgen dir und geben am Korb „Geisterlicht! +1“. Im Finale stehen die friedlichen vorne, dicht hinter dem Hähnchen. Ergebnis: „Befriedete Spuks n/m“.
 - **Köder (T19):** Shop-Item „Köder: Quietschball“ (150) ist jetzt aktiv, Toast beim Kauf „Quietschball!“ / „Shift: werfen. Spuks laufen zum Quietschen.“ Shift wirft einen kleinen gelben Ball im Bogen bis 5 m (stoppt vor Wänden), er springt einmal auf und quietscht 3× in 4 s. Jedes Quietschen ist eine Geräuschquelle (gelber 6-m-Ring): Socken laufen hin, Rudi fährt hin, Hände ignorieren es. Der Ball enthüllt, zahlt aber keine Federn und macht nie friedlich. 2 s Abklingzeit, HUD-Chip unten links („⇧“ + Ball, füllt sich im Uhrzeigersinn). Titel-Steuerung: „Shift – Köder werfen (Shop)“.
 - **Dachboden (T20):** Leiter an der Nordwand des Flurs („E: Leiter hochklettern“). Unter 7 Sternen: „Die Leiter ist zu hoch.“ / „n/7 Sterne – ab 7 Sternen kommst du hoch.“ Ab 7 Sternen: Klettern auf den Dachboden (Toast „Dachboden“ / „Staubig. Und ein bisschen warm.“, Missionsziel „Halsband anlegen.“). Darin: Bellos Decke („E: Decke ansehen“) → Story-Karte „Bello war hier“: „Eine alte Decke, Kratzspuren am Balken, Hundehaare überall. Hier oben hat sich Bello vor jedem Gewitter versteckt. Neben der Decke liegt sein Halsband.“ · „E: Halsband nehmen“ → „Bellos Halsband!“ / „Q: anlegen. 20 s greift dich kein Spuk an.“ und wird sofort angelegt („Halsband an!“ / „20 s lang greift dich keiner an.“; danach „Halsband ab.“ / „In 40 s wieder bereit (Q).“). HUD-Chip „Q · Halsband 19 s“ / „bereit in n s“ / „Halsband bereit“. Federtruhe (+40). „E: Hinunterklettern“ an der Luke. Titel-Steuerung: „Q – Halsband (Dachboden)“.
+
+### Ergänzungen P5 (Polish, implementiert in `src/ui/texts.ts`)
+
+- **Panik:** Bei 0 Herzen sind alle Herzen sofort wieder voll. Karte „Panik!“ / „Zurück im Korb. Alle Herzen wieder voll.“ hält das Hähnchen 1,5 s fest und schließt sich selbst (Enter schließt früher).
+- **Nach einem Fang:** 2 s Schonzeit (Hähnchen blinkt, kein Spuk fängt oder bemerkt es).
+- **Geisterlicht-Tutorial:** Kommt zum ersten Mal ein jagender Socken-Geist mit in den Flur, pulsiert das Nachtlicht und eine Karte erklärt einmalig: „Das Nachtlicht“ / „Spuk im Licht anschreien = befrieden.“ (Button „Verstanden“).
+- **Hand-Schreck:** Der erste Schrei im Wohnzimmer lässt eine große, hell beleuchtete Hand 1,7 m neben dem Hähnchen aus dem Boden schießen (Kamera-Punch, Schock-Sting), danach sinkt sie zurück zum Sofa.
+- **Rudi:** 3,0 m/s (langsamer als das Hähnchen), nach „Strom an“ 1,5 s Aufwach-Flackern, in dem er nichts hört. Zwei rote Augen und ein roter Motor-Schein am Boden.
+- **Sturm:** Im Wohnzimmer blitzt es alle 8–12 s, solange die Uhr-Mission offen ist (sonst 15–25 s).
+- **Titel-Logo:** Inter mit Kontur statt Pixelify (das Pixelify-C las sich als O).

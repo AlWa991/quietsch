@@ -11,7 +11,8 @@ export type CardId =
   | 'panic'
   | 'twist3'
   | 'finale'
-  | 'bello';
+  | 'bello'
+  | 'peaceHint';
 
 export type EndingId = 'A' | 'B';
 
