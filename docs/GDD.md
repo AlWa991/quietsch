@@ -145,3 +145,4 @@ Stand: 2026-10-23 · Quelle: Projektplan (Abschnitt 2), ergänzt um Steuerung un
 - **Rudi:** 3,0 m/s (langsamer als das Hähnchen), nach „Strom an“ 1,5 s Aufwach-Flackern, in dem er nichts hört. Zwei rote Augen und ein roter Motor-Schein am Boden.
 - **Sturm:** Im Wohnzimmer blitzt es alle 8–12 s, solange die Uhr-Mission offen ist (sonst 15–25 s).
 - **Titel-Logo:** Inter mit Kontur statt Pixelify (das Pixelify-C las sich als O).
+- **Enden mit Bild:** Hinter dem Ergebnis-Panel (rechts, ~70 % deckend) läuft die 3D-Szene weiter. Ende A: Hähnchen in der offenen Haustür, kaltes Sturmlicht, Blitze alle 3–4 s, die Spuks dahinter. Ende B: alle Spuks leuchten warm und kuscheln sich um den Korb. Die Statistik bleibt unverändert.

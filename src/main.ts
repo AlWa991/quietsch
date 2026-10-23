@@ -427,6 +427,13 @@ function boot(root: HTMLElement): void {
 
   // --- Finale + endings ---------------------------------------------------------------
   let choice: Choice | null = null;
+  let endingId: EndingId | null = null;
+  /** Ending tableau light: cold storm light through the open door (A) or warm Korb glow (B). */
+  const endLight = new THREE.PointLight(0xbcd4ff, 0, 11, 1.2);
+  ctx.scene.add(endLight);
+  let stormIn = 0;
+  /** Camera looks this far right of the chicken in the ending, so the panel sits beside it. */
+  const ENDING_CAM_SHIFT = 2.6;
   let forcedEnding: EndingId | null = null;
   async function startFinale(): Promise<void> {
     if (phase !== 'play') return;
@@ -456,12 +463,26 @@ function boot(root: HTMLElement): void {
 
   function finish(id: EndingId): void {
     setPhase('ending');
+    endingId = id;
+    // Counted before the B tableau pacifies everyone for the picture.
+    const peaceful = peacefulCount(spooks.list.map((x) => x.state));
     if (id === 'A') {
+      // The door stands open, storm light pours in, lightning keeps striking behind the chicken.
       missions.door.setOpen(true);
       sfx.scream(SONAR.maxHold);
+      teleportTo(missions.door.x, missions.door.z + 0.15);
+      endLight.color.setHex(0xbcd4ff);
+      endLight.position.set(missions.door.x, 1.4, missions.door.z + 0.6);
+      endLight.intensity = 14;
+      stormIn = 0.4;
     } else {
+      // Everyone cuddles into the Korb, glowing warm and peaceful.
       teleportTo(korb.x, korb.z);
-      spooks.gather(korb.x, korb.z + 2.4);
+      for (const sp of spooks.list) spooks.restAtKorb(sp, korb.x, korb.z);
+      endLight.color.setHex(0xffa860);
+      endLight.distance = 6;
+      endLight.position.set(korb.x, 1.2, korb.z + 0.4);
+      endLight.intensity = 9;
     }
     store.emit({ type: 'ending', endingId: id });
     progress.addXp(100);
@@ -479,7 +500,7 @@ function boot(root: HTMLElement): void {
         rank: rankName(store.get().rank),
         time: formatTime(s.time),
         secret: secretFound(s.flags),
-        peaceful: peacefulCount(spooks.list.map((x) => x.state)),
+        peaceful,
       },
       () => {
         try {
@@ -791,7 +812,16 @@ function boot(root: HTMLElement): void {
       fog.far += (want.far - fog.far) * k;
     }
     reveal.update(dt);
-    rig.update(rawDt, chicken.pos.x, chicken.pos.z, chicken.vel.x, chicken.vel.z, grid);
+    if (endingId === 'A') {
+      stormIn -= rawDt;
+      if (stormIn <= 0) {
+        lightning.strike();
+        stormIn = 2.6 + Math.random() * 1.8;
+      }
+      endLight.intensity = 12 + Math.sin(time * 2.1) * 2;
+    }
+    const camX = endingId ? chicken.pos.x + ENDING_CAM_SHIFT : chicken.pos.x;
+    rig.update(rawDt, camX, chicken.pos.z, chicken.vel.x, chicken.vel.z, grid);
     postfx.render(rawDt);
 
     if (debugEl) {

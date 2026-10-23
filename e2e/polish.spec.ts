@@ -127,3 +127,28 @@ test('a sock chasing into the Flur triggers the night-light hint once', async ({
   expect(await page.evaluate(() => window.__game?.state.flags['card:peaceHint'])).toBe(true);
   expect(errors).toEqual([]);
 });
+
+for (const id of ['A', 'B'] as const) {
+  test(`ending ${id} shows the live scene behind a translucent panel`, async ({ page }) => {
+    const errors = collectErrors(page);
+    await boot(page);
+    await play(page);
+    await page.evaluate(() => window.__game?.actions?.gotoFinale());
+    for (let i = 0; i < 10 && !(await page.locator('.q-choice').isVisible()); i++) {
+      if (await page.locator('.q-story').isVisible()) await page.keyboard.press('Enter');
+      await page.waitForTimeout(500);
+    }
+    await page.locator(`[data-testid="choice-${id}"]`).click();
+    const ending = page.locator(`.q-ending[data-ending="${id}"]`);
+    await ending.waitFor({ state: 'visible', ...WAIT });
+    await expect(ending).toContainText('Federn');
+    // Transparent overlay, panel at ~70 % opacity: the 3D scene stays visible.
+    const alpha = await page
+      .locator('.q-ending__panel')
+      .evaluate((n) => getComputedStyle(n).backgroundColor);
+    expect(alpha).toContain('0.7');
+    await page.waitForTimeout(2600);
+    await page.screenshot({ path: `${SHOT}/polish-ending-${id.toLowerCase()}.png` });
+    expect(errors).toEqual([]);
+  });
+}
