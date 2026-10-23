@@ -22,7 +22,7 @@ Legende: TODO · WIP · REVIEW · DONE · CUT · (Modell) · Owner-Dateien exklu
 - [ ] T12 (Opus, fresh) Playtest 2 mit Bugliste · [ ] G1 (Sonnet, fresh) Reviewer + spec-verifier gegen GDD
 
 ## P3 Deploy
-- [ ] T13 (Opus-Lead) Gate-1-Fixes · [ ] T14 (Sonnet) gh-pages Deploy, URL-Check, Docker-Beweis
+- [x] T13 DONE (Opus-Lead + Sonnet-Worker Punkte 6–7) Gate-1-Fixes, s. DONE · [ ] T14 (Sonnet) gh-pages Deploy, URL-Check, Docker-Beweis
 
 ## P4 Stretch (nur nach G1, Reihenfolge fix)
 - [ ] T15 Geisterlichter · [ ] T16 Keller + Krone · [ ] T17 Türklingel + Herzschlag · [ ] T18 Hüte · [ ] T19 Köder · [ ] T20 Dachboden
@@ -34,6 +34,7 @@ Legende: TODO · WIP · REVIEW · DONE · CUT · (Modell) · Owner-Dateien exklu
 - [ ] T23 (Sonnet) finaler Deploy + Abgabetext · [ ] T24 (Haiku) Chat-Log-Summary, SESSION_STATE final
 
 ## DONE
+- [x] T13 Gate-1-Fixes, 2026-10-23: playtest-1 Punkte 1–10 alle erledigt (keiner geskippt) + A (revealed-IDs im Save), B (Krone `secret`, nicht im Shop), C (Finale-Spuks driften ~3 s heran). 1 Gummihuhn-Modell 2,08× (Schnabel öffnet beim Schrei, Baumelbeine), Kamera −15 %, Emissive halbiert, Glow-Licht höher · 2 Pixelify nur noch Titel-Logo · 3 Socke 3,6 m/s (1,125×), Timeout 10 s, Lock-on ≤ 3,5 m, Sockenform mit Augen (zur Kamera gedreht) · 4 Blitz 250 ms Weiß-Wash (PostFX) + Fensterlicht mit Ast-Silhouetten am Boden · 5 Floats hellgelb, Kontur, 1,3× · 6 Kinderzimmer-Teppich (Rauten/Bordüre/Ringe), Wohnzimmer-Teppichinseln · 7 je +6 Props/Raum (Primitive + GLB) · 8 Look-ahead stoppt an Wänden + X-Ray-Silhouette des Hähnchens hinter Wänden/Möbeln · 9 Fang-Freeze-Frame 0,5 s mit Kamera-Close-up · 10 THREE.Timer, Favicon. typecheck/lint/format/test (72)/build/e2e (7) grün. Screenshots e2e/screenshots/fix-{chicken-closeup,reveal,lightning,socke}.png (Harness e2e/playtest/fix-shots.mjs, GPU=1 für Blitz-Timing).
 - [x] P2 Systeme & Content (T09–T11), 2026-10-23: Titel → Intro → 3 Missionen (Echo-Rätsel, Rudi/Sicherung/Taschenlampe, Kuckucksuhr/Hände) → 3 Schlösser → Finale → Ende A/B → „Nochmal spielen“. Economy/XP/Ränge/Herzen/Panik/Sterne/Shop/Hüte/Save/Türklingel. typecheck/lint/format/test (69)/build/e2e (7) grün, Docker /health 200, whoami=nginx. Screenshots e2e/screenshots/{title,shop,mission-1..3,finale,ending-a,ending-b}.png
 - [x] P1 Vertical Slice (T04–T07), 2026-10-23: typecheck/lint/format/test (22)/build/e2e (4) grün, Screenshots e2e/screenshots/{boot,reveal}.png
 - [x] T03 (Orchestrator) gh repo create AlWa991/quietsch --public (Repo: https://github.com/AlWa991/quietsch), Pages-Aktivierung verschoben nach T14

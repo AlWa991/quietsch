@@ -162,3 +162,10 @@ describe('roomStars', () => {
     expect(roomStars({ time: 100, caught: 0, done: true })).toBe(3);
   });
 });
+
+describe('shop listing', () => {
+  it('keeps the Krone out of the shop until the Keller exists', () => {
+    expect(SHOP_ITEMS.find((i) => i.id === 'krone')?.secret).toBe(true);
+    expect(SHOP_ITEMS.filter((i) => !i.secret).map((i) => i.id)).not.toContain('krone');
+  });
+});

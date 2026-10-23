@@ -35,7 +35,7 @@ interface KindStyle {
 
 const STYLE: Record<RevealKind, KindStyle> = {
   wall: { color: 0x7fc4ff, peak: 1, residual: 0.08, threshold: 1 },
-  floor: { color: 0x4a74a8, peak: 0.26, residual: 0, threshold: 1 },
+  floor: { color: 0x4a74a8, peak: 0.36, residual: 0, threshold: 1 },
   prop: { color: 0xd2ecff, peak: 1, residual: 0.08, threshold: 28 },
   spook: { color: 0xeef6ff, peak: 0.7, residual: 0, threshold: 50 },
 };

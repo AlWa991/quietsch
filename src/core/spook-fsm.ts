@@ -45,15 +45,18 @@ export interface SpookInput {
 
 export const SPOOK = {
   wanderSpeed: 0.7,
-  chaseSpeed: 2.4,
+  /** >= 1.1x the chicken's 3.2 m/s, so running away alone does not work. */
+  chaseSpeed: 3.6,
   returnSpeed: 1.3,
   wanderRadius: 4,
   /** Pause (turning towards the sound) before chasing. */
   alertTime: 0.6,
   /** Give up a chase after this long. */
-  chaseTimeout: 7,
+  chaseTimeout: 10,
   /** Linger at the heard position before returning. */
-  lingerTime: 1.4,
+  lingerTime: 2.4,
+  /** While chasing, a sock that is this close locks on to the chicken itself. */
+  huntRadius: 3.5,
   catchRadius: 0.6,
   /** Passive hearing of hop noise. */
   noticeRadius: 2,
@@ -341,6 +344,10 @@ function stepSocke(s: SpookState, input: SpookInput): SpookEvent {
       break;
     case 'chase': {
       s.timer -= dt;
+      if (toChicken <= SPOOK.huntRadius) {
+        s.targetX = input.chickenX;
+        s.targetZ = input.chickenZ;
+      }
       const left = moveTowards(s, s.targetX, s.targetZ, SPOOK.chaseSpeed, input);
       if (left < SPOOK.arriveEps && s.timer > SPOOK.lingerTime) s.timer = SPOOK.lingerTime;
       if (s.timer <= 0) s.mode = 'return';

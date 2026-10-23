@@ -52,5 +52,6 @@ export function initialGameState(rand: () => number = Math.random): GameState {
     time: 0,
     rooms: {},
     missions: createMissions(rand),
+    revealed: [],
   };
 }

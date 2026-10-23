@@ -85,4 +85,6 @@ export interface GameState {
   /** Per-room records for stars, keyed by room id. */
   rooms: Record<string, RoomRecord>;
   missions: MissionsState;
+  /** Revealable ids that already paid their first-reveal feathers (survives reloads). */
+  revealed: string[];
 }

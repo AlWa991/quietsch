@@ -1132,3 +1132,78 @@ body {
     animation-duration: 0.01ms !important;
   }
 }
+
+/* ---------- T13 Gate-1 fixes ---------- */
+
+/* Pixelify only for the game title logo; every other heading/label uses Inter (legibility). */
+.q-rank__name,
+.q-toast__title,
+.q-story__title,
+.q-btn--primary,
+.q-demo__title,
+.q-title__sub,
+.q-prompt__key,
+.q-shop__title,
+.q-choice__title,
+.q-choice__label,
+.q-ending__title,
+.q-results__heading {
+  font-family: var(--font-ui);
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
+/* Floating numbers: light yellow with a dark outline, 1.3x larger. */
+.q-float {
+  font-weight: 800;
+  font-size: 34px;
+  text-shadow:
+    2px 0 0 #120d04,
+    -2px 0 0 #120d04,
+    0 2px 0 #120d04,
+    0 -2px 0 #120d04,
+    1.5px 1.5px 0 #120d04,
+    -1.5px 1.5px 0 #120d04,
+    1.5px -1.5px 0 #120d04,
+    -1.5px -1.5px 0 #120d04,
+    0 3px 8px rgba(0, 0, 0, 0.7);
+}
+
+.q-float--feather {
+  color: #fff4a8;
+}
+
+.q-float--combo {
+  font-size: 52px;
+}
+
+.q-float--info {
+  font-size: 26px;
+}
+
+/* Hold full opacity for most of the rise so the light yellow reads before fading. */
+@keyframes q-float-hold {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -30%) scale(0.6);
+  }
+  12% {
+    opacity: 1;
+    transform: translate(-50%, -60%) scale(1.2);
+  }
+  65% {
+    opacity: 1;
+    transform: translate(-50%, -190%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -260%) scale(1);
+  }
+}
+
+.q-float--feather,
+.q-float--danger,
+.q-float--info {
+  animation-name: q-float-hold;
+  animation-duration: 1.1s;
+}

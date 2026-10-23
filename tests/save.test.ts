@@ -66,6 +66,12 @@ describe('serialize / deserialize', () => {
     expect(back?.missions).toEqual(d.missions);
   });
 
+  it('keeps revealed prop ids (deduplicated, strings only) so feathers are not paid twice', () => {
+    const raw = wrap({ ...defaults(), revealed: ['sofa-3', 'bed-0', 'sofa-3', 7, null] });
+    expect(deserialize(raw, defaults())?.revealed).toEqual(['sofa-3', 'bed-0']);
+    expect(deserialize(wrap({ feathers: 1 }), defaults())?.revealed).toEqual([]);
+  });
+
   it('drops a worn hat that is not owned', () => {
     const back = deserialize(wrap({ hat: 'krone', hats: ['kuerbis'] }), defaults());
     expect(back?.hat).toBeNull();

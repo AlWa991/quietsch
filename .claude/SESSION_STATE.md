@@ -1,5 +1,5 @@
 # SESSION_STATE – QUIETSCH!
-Stand: 2026-10-23 · Orchestrator: Fable (Phasen-Ebene) · Phase: P2 DONE → nächster Schritt Gate 1 (T12 Playtest 2 + G1 Review)
+Stand: 2026-10-23 · Orchestrator: Fable (Phasen-Ebene) · Phase: P2 DONE + T13 Gate-1-Fixes DONE (uncommitted auf main) → nächster Schritt Gate 1 (T12 Playtest 2 + G1 Review), dann T14 Deploy
 
 ## Projekt
 3D-Browser-Game (Three.js) für 24h-Contest. Theme „It's spooky outside“, Objekt Quietschhähnchen. GDD: docs/GDD.md · Architektur: docs/ARCHITECTURE.md · Tasks: .claude/TASKBOARD.md
@@ -38,6 +38,20 @@ Stand: 2026-10-23 · Orchestrator: Fable (Phasen-Ebene) · Phase: P2 DONE → n�
 - `.claude/**` in eslint ignores (Playtester-Worktree brach `pnpm lint`). `.dockerignore` schließt .env* aus.
 - `window.__game` hat jetzt `phase`, `modal`, `actions` (nicht optional).
 
+### T13-Entscheidungen (Gate-1-Fixes)
+- Hähnchen: neues Gummihuhn-Modell (lange Beine, Hals, 4er-Kamm, Kehllappen, Ober-/Unterschnabel), Skalierung 2,08 (1,6× P1), BODY_HALF 0,28. `ChickenModel.pose(beakOpen, legSwing)`. Emissive halbiert, Glow-PointLight auf y 3,2 (beleuchtet Boden statt Hähnchen).
+- X-Ray: Ghost-Meshes (depthFunc Greater, renderOrder 5, Hähnchen 10) zeigen das Hähnchen dunkelgelb hinter Wänden/Möbeln. Kamera-Offset (0, 9,5, 6,3), Look-ahead stoppt vor blockierten Zellen.
+- Socke: Lathe-Laken ersetzt durch Socke (Schaft, Bündchen, Ferse, Fuß, rote Spitze), Augen-Gruppe dreht immer zur Kamera. FSM: chaseSpeed 3,6, chaseTimeout 10, linger 2,4, huntRadius 3,5 (Ziel = Hähnchen statt Schallquelle).
+- Blitz: FLASH 0,25 s, PostFX-Uniform `flash` (Vignette-Pass) 0,92 Weiß → Dip → 0,4; Fenster-Lichtflecken mit Kreuz + Ast (CanvasTexture, additiv) aus `WINDOW_SPOTS` (builder.ts), 0,6 s Nachglühen. Hook `flash(v)`.
+- Fang: 0,5 s Freeze (Simulation dt=0, frame.active=false), `rig.closeUp()` −16° FOV auf Spuk, Rückstoß/Panik erst danach.
+- Save: `GameState.revealed: string[]` (Prop-Reveal-IDs, index-basiert `${key}-${i}`), beim Weiter + nach placeProps auf `rewarded` gesetzt. Neues Feld, SAVE_VERSION bleibt 1 (Fallback []).
+- Shop: `ShopItem.secret` (Krone) wird nicht gelistet; Freischaltung in P4 (Keller).
+- Finale: Spuks starten 3,6 m (+0,5/Reihe) hinter ihrem Platz, rest-Mode läuft mit 1,3 m/s heran (~3 s).
+- UI: Pixelify nur `.q-title__logo`; Floats #fff4a8 mit 8-fach-Schattenkontur, 34/52/26 px, Haltekurve 1,1 s. Floor-Reveal-Peak 0,26 → 0,36.
+- THREE.Clock → `GameClock`-Wrapper um THREE.Timer (scene.ts). Favicon public/favicon.svg.
+- Worker (Sonnet) Punkte 6–7: Primitive-Props in assets.ts (`PrimKey`/`PRIM_INFO`/`buildPrim`), Bodenmuster `carpet` (Kinderzimmer) und `islands` (Wohnzimmer) in builder.ts. house-map.ts unverändert.
+- eslint ignoriert `e2e/playtest/**` (Wegwerf-Harness). Screenshots: `node e2e/playtest/fix-shots.mjs <url> [chicken,reveal,lightning,socke,rooms]`, `GPU=1` für Metal (Blitz nur mit GPU im 250-ms-Fenster fotografierbar).
+
 ## Kommandos
 pnpm dev · pnpm build · pnpm test · pnpm e2e · pnpm typecheck · pnpm lint · pnpm format:check · pnpm deploy
 Debug: `?debug=1` (FPS, Spuk-Hörradius, Tasten 1–4 Raum-Teleport, L = Blitz) · `?ui=1` UI-Demo · `?audio=1` Audio-Demo
@@ -45,8 +59,8 @@ E2E/Playtest-Hooks: `window.__game.{phase, modal, state}` · `actions.{scream(ho
 docker compose up -d --build && curl -s -o /dev/null -w "%{http_code}" localhost:8080/health   (ab T11)
 
 ## Done / Next / Blocker
-Done: P0, P1 (T04–T07), P2 (T09–T11) · Next: Gate 1 (T12 Playtest 2 Opus fresh + G1 Reviewer/spec-verifier Sonnet fresh) · Blocker: keine
-Offen/bekannt: Swiftshader-FPS 10–17 (Software-GL, kein Maßstab), echte GPU noch nicht gemessen; Bundle > 500 kB (Three.js, unkritisch); 12–15-Min-Arc nicht real durchgespielt (nur e2e-Debug-Pfad + Mechanik-Skript), Balancing Federn/Preise/Sterne-Partime offen für Playtest 2; Köder „bald verfügbar“; Krone kaufbar (Keller P4); Federn für Erst-Reveals werden nach Reload erneut vergeben (Reveal-Status nicht gespeichert); `zzfx` ungenutzt in package.json.
+Done: P0, P1 (T04–T07), P2 (T09–T11), T13 · Next: Gate 1 (T12 Playtest 2 Opus fresh + G1 Reviewer/spec-verifier Sonnet fresh) · Blocker: keine
+Offen/bekannt: Swiftshader-FPS 10–17 (Software-GL, kein Maßstab), echte GPU noch nicht gemessen; Bundle > 500 kB (Three.js, unkritisch); 12–15-Min-Arc nicht real durchgespielt (nur e2e-Debug-Pfad + Mechanik-Skript), Balancing Federn/Preise/Sterne-Partime offen für Playtest 2; Köder „bald verfügbar“; Mehr Props (T13) → Combos ×13–×18 je Raum (+100–150 Federn), Ränge steigen sehr schnell: Combo-Bonus in Playtest 2 balancen; Toast-Stapel (bis 4) verdeckt bei vielen Events das Hähnchen; `zzfx` ungenutzt in package.json.
 
 ## Rekonstruktions-Check
 1. Protagonist? 2. Engine? 3. Was öffnet die Haustür? 4. Phase? 5. Offene Tasks?

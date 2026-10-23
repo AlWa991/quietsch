@@ -3,36 +3,16 @@ import { createSpook, type SpookState } from '@/core/spook-fsm';
 import type { SpookKind } from '@/core/types';
 import type { RevealSystem, Revealable } from '@/render/reveal';
 
-// Socken-Geist: a sheet ghost with a jagged hem and sock-cuff stripes. Shared geometry.
-const profile = [
-  new THREE.Vector2(0.0, 1.1),
-  new THREE.Vector2(0.16, 1.07),
-  new THREE.Vector2(0.27, 0.97),
-  new THREE.Vector2(0.31, 0.8),
-  new THREE.Vector2(0.31, 0.55),
-  new THREE.Vector2(0.36, 0.3),
-  new THREE.Vector2(0.46, 0.08),
-];
-const SEGMENTS = 12;
-const bodyGeo = new THREE.LatheGeometry(profile, SEGMENTS);
-{
-  // Jagged, flared hem: displace the lowest ring of vertices.
-  const pos = bodyGeo.getAttribute('position');
-  for (let i = 0; i < pos.count; i++) {
-    const y = pos.getY(i);
-    if (y > 0.1) continue;
-    const x = pos.getX(i);
-    const z = pos.getZ(i);
-    const a = Math.atan2(z, x);
-    const k = 1 + 0.12 * Math.cos(a * 6);
-    pos.setXYZ(i, x * k, y - 0.07 * Math.max(0, Math.cos(a * 6)), z * k);
-  }
-  bodyGeo.computeVertexNormals();
-}
-const stripeGeo = new THREE.CylinderGeometry(0.318, 0.318, 0.06, SEGMENTS, 1, true);
-const eyeGeo = new THREE.SphereGeometry(0.055, 6, 4);
-const eyeMat = new THREE.MeshBasicMaterial({ color: 0x05060a, transparent: true });
-
+// Socken-Geist: an upright floating sock (cuff, leg, heel, foot with red toe) with big eyes.
+const SEG = 10;
+const legGeo = new THREE.CylinderGeometry(0.22, 0.24, 0.74, SEG, 1, true);
+const cuffGeo = new THREE.TorusGeometry(0.225, 0.045, 5, SEG);
+const heelGeo = new THREE.SphereGeometry(0.24, SEG, 6, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2);
+const footGeo = new THREE.CapsuleGeometry(0.2, 0.36, 3, SEG);
+const toeGeo = new THREE.SphereGeometry(0.205, SEG, 6, 0, Math.PI * 2, 0, Math.PI / 2);
+const stripeGeo = new THREE.CylinderGeometry(0.232, 0.234, 0.07, SEG, 1, true);
+const eyeGeo = new THREE.SphereGeometry(0.075, 8, 6);
+const pupilGeo = new THREE.SphereGeometry(0.04, 6, 4);
 export interface Spook {
   readonly state: SpookState;
   readonly object: THREE.Group;
@@ -77,21 +57,53 @@ function createSocke(x: number, z: number, reveal: RevealSystem): Spook {
     depthWrite: false,
     side: THREE.DoubleSide,
   });
+  // Per-sock so opacity fades independently.
+  const eyeMat = new THREE.MeshBasicMaterial({ color: 0x05060a, transparent: true, opacity: 0 });
+  const glintMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0 });
+  const part = (
+    geo: THREE.BufferGeometry,
+    m: THREE.Material,
+    px: number,
+    py: number,
+    pz: number,
+    reveal = true,
+  ): THREE.Mesh => {
+    const mesh = new THREE.Mesh(geo, m);
+    mesh.position.set(px, py, pz);
+    if (!reveal) mesh.userData.noReveal = true;
+    inner.add(mesh);
+    return mesh;
+  };
   const inner = new THREE.Group();
-  const body = new THREE.Mesh(bodyGeo, bodyMat);
-  const stripeA = new THREE.Mesh(stripeGeo, stripeMat);
-  const stripeB = new THREE.Mesh(stripeGeo, stripeMat);
-  stripeA.position.y = 0.66;
-  stripeB.position.y = 0.56;
-  stripeA.userData.noReveal = true;
-  stripeB.userData.noReveal = true;
-  const eyeL = new THREE.Mesh(eyeGeo, eyeMat);
-  const eyeR = new THREE.Mesh(eyeGeo, eyeMat);
-  eyeL.position.set(-0.11, 0.78, 0.29);
-  eyeR.position.set(0.11, 0.78, 0.29);
-  eyeL.userData.noReveal = true;
-  eyeR.userData.noReveal = true;
-  inner.add(body, stripeA, stripeB, eyeL, eyeR);
+  // Leg (open tube) from y 0.48 to 1.22, cuff ring on top, heel cap below.
+  part(legGeo, bodyMat, 0, 0.85, 0);
+  const cuff = part(cuffGeo, stripeMat, 0, 1.22, 0, false);
+  cuff.rotation.x = Math.PI / 2;
+  part(stripeGeo, stripeMat, 0, 1.08, 0, false);
+  part(stripeGeo, stripeMat, 0, 0.96, 0, false);
+  part(heelGeo, bodyMat, 0, 0.48, 0);
+  // Foot points forward (+z, the heading) and droops slightly.
+  const foot = part(footGeo, bodyMat, 0, 0.38, 0.22);
+  foot.rotation.x = Math.PI / 2 + 0.12;
+  const toe = part(toeGeo, stripeMat, 0, 0.33, 0.48, false);
+  toe.rotation.x = Math.PI / 2 + 0.12;
+  // Big hollow eyes on the shin. The sock is round, so the face turns towards the camera
+  // (south) whatever the heading: the top-down view always sees the eyes.
+  const face = new THREE.Group();
+  face.position.y = 0.98;
+  inner.add(face);
+  for (const sx of [-0.1, 0.1]) {
+    const eye = new THREE.Mesh(eyeGeo, eyeMat);
+    eye.position.set(sx, 0, 0.2);
+    eye.scale.set(1, 1.35, 0.6);
+    const glint = new THREE.Mesh(pupilGeo, glintMat);
+    glint.position.set(sx + 0.025, 0.04, 0.25);
+    glint.scale.setScalar(0.45);
+    eye.userData.noReveal = true;
+    glint.userData.noReveal = true;
+    face.add(eye, glint);
+  }
+  inner.scale.setScalar(1.2);
   object.add(inner);
   object.position.set(x, 0, z);
   const rev = reveal.add(object, 'spook', 'socke');
@@ -102,12 +114,15 @@ function createSocke(x: number, z: number, reveal: RevealSystem): Spook {
     reveal: rev,
     dist: Infinity,
     update(_dt, time, cx, cz) {
-      object.position.set(state.x, 0.12 + Math.sin(time * 2.3) * 0.07, state.z);
+      object.position.set(state.x, 0.14 + Math.sin(time * 2.3) * 0.08, state.z);
       object.rotation.y = state.heading;
+      face.rotation.y = -state.heading;
       inner.rotation.z = Math.sin(time * 1.7) * 0.08;
-      inner.rotation.x = state.mode === 'chase' ? 0.25 : 0;
+      inner.rotation.x = state.mode === 'chase' ? 0.3 : 0;
+      foot.rotation.x = Math.PI / 2 + 0.12 + Math.sin(time * 3.4) * 0.1;
+      toe.rotation.x = foot.rotation.x;
       const pulse = 1 + Math.sin(time * 3.1) * 0.04;
-      inner.scale.set(pulse, 2 - pulse, pulse);
+      inner.scale.set(1.2 * pulse, 1.2 * (2 - pulse), 1.2 * pulse);
       reveal.setBounds(rev, state.x, state.z, 0.35);
 
       self.dist = Math.hypot(cx - state.x, cz - state.z);
@@ -116,9 +131,10 @@ function createSocke(x: number, z: number, reveal: RevealSystem): Spook {
       const glow = Math.min(1, Math.max(0, (3 - self.dist) / 1.6));
       const v = Math.max(reveal.visibility(rev), glow, peaceful ? 0.75 : 0);
       bodyMat.emissive.copy(peaceful ? PEACE_TINT : SOCK_EMISSIVE);
-      bodyMat.opacity = 0.7 * v;
-      stripeMat.opacity = 0.75 * v;
+      bodyMat.opacity = 0.78 * v;
+      stripeMat.opacity = 0.85 * v;
       eyeMat.opacity = v;
+      glintMat.opacity = v;
       object.visible = v > 0.01;
     },
   };

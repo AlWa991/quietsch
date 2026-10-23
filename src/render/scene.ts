@@ -1,10 +1,32 @@
 import * as THREE from 'three';
 
+/** Clock-shaped wrapper around THREE.Timer (THREE.Clock is deprecated in r186). */
+export interface GameClock {
+  /** Advances the timer; call once per frame. */
+  getDelta(): number;
+  readonly elapsedTime: number;
+}
+
+function createGameClock(): GameClock {
+  const timer = new THREE.Timer();
+  // Pauses delta accumulation while the tab is hidden.
+  timer.connect(document);
+  return {
+    getDelta() {
+      timer.update();
+      return timer.getDelta();
+    },
+    get elapsedTime() {
+      return timer.getElapsed();
+    },
+  };
+}
+
 export interface RenderContext {
   renderer: THREE.WebGLRenderer;
   scene: THREE.Scene;
   camera: THREE.PerspectiveCamera;
-  clock: THREE.Clock;
+  clock: GameClock;
   /** Hook for postfx to follow canvas size changes. */
   onResize: (cb: (w: number, h: number) => void) => void;
 }
@@ -48,7 +70,7 @@ export function createRenderContext(): RenderContext {
     renderer,
     scene,
     camera,
-    clock: new THREE.Clock(),
+    clock: createGameClock(),
     onResize: (cb) => listeners.push(cb),
   };
 }

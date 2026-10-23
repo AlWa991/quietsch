@@ -2,7 +2,15 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { GridCell, type HouseMap } from '@/core/types';
 import type { RevealSystem } from '@/render/reveal';
-import { PROP_INFO, loadProp, type PropKey } from './assets';
+import {
+  PRIM_INFO,
+  PROP_INFO,
+  buildPrim,
+  isPrimKey,
+  loadProp,
+  type PrimKey,
+  type PropKey,
+} from './assets';
 import { SOFA_SPOTS } from './house-map';
 
 export interface WallBox {
@@ -24,7 +32,7 @@ const FLOOR_PATCH = 4;
 
 const ROOM_FLOOR: Record<string, number> = {
   flur: 0x1c1712,
-  kinderzimmer: 0x141826,
+  kinderzimmer: 0x1a2036,
   kueche: 0x171b1c,
   wohnzimmer: 0x1e1610,
 };
@@ -36,6 +44,18 @@ export const windowMaterial = new THREE.MeshBasicMaterial({
   fog: false,
 });
 export const WINDOW_BASE = new THREE.Color(0x1b2d4a);
+
+/** Window panes: [x, z, rotY]. Shared with the lightning system for window silhouettes. */
+export const WINDOW_SPOTS: readonly [x: number, z: number, rotY: number][] = [
+  [14, 1.03, 0],
+  [20, 1.03, 0],
+  [33, 1.03, 0],
+  [36, 1.03, 0],
+  [1.03, 15, Math.PI / 2],
+  [1.03, 25, Math.PI / 2],
+  [46.97, 17, -Math.PI / 2],
+  [46.97, 27, -Math.PI / 2],
+];
 
 export interface DoorLight {
   x: number;
@@ -115,40 +135,217 @@ function boxGeo(b: WallBox, height: number): THREE.BufferGeometry {
   return g;
 }
 
-type FloorPattern = 'planks' | 'tiles' | 'none';
+type FloorPattern = 'planks' | 'tiles' | 'carpet' | 'islands';
 
 const ROOM_PATTERN: Record<string, FloorPattern> = {
   flur: 'planks',
-  wohnzimmer: 'planks',
+  wohnzimmer: 'islands',
   kueche: 'tiles',
-  kinderzimmer: 'none',
+  kinderzimmer: 'carpet',
 };
 
-/** Floor line pattern for one patch: staggered planks (along x) or a 1 m tile grid. */
+/** Axis-aligned rect in world metres. */
+interface Rect {
+  x0: number;
+  z0: number;
+  x1: number;
+  z1: number;
+}
+
+/** Flat 2D segments [ax, az, bx, bz, ...]. */
+type Segs = number[];
+
+/** Carpet islands in the Wohnzimmer (planks stay visible around them). */
+const WOHNZIMMER_ISLANDS: Rect[] = [
+  { x0: 14.5, z0: 3.8, x1: 22.5, z1: 9.6 },
+  { x0: 25.5, z0: 3.4, x1: 33.5, z1: 9.6 },
+  { x0: 9.6, z0: 5.6, x1: 13.4, z1: 9.8 },
+];
+
+/** Clip one segment to a rect (Liang-Barsky); null if fully outside. */
+function clipSeg(
+  ax: number,
+  az: number,
+  bx: number,
+  bz: number,
+  r: Rect,
+): [number, number, number, number] | null {
+  let t0 = 0;
+  let t1 = 1;
+  const dx = bx - ax;
+  const dz = bz - az;
+  const p = [-dx, dx, -dz, dz];
+  const q = [ax - r.x0, r.x1 - ax, az - r.z0, r.z1 - az];
+  for (let i = 0; i < 4; i++) {
+    const pi = p[i] as number;
+    const qi = q[i] as number;
+    if (pi === 0) {
+      if (qi < 0) return null;
+    } else {
+      const t = qi / pi;
+      if (pi < 0) t0 = Math.max(t0, t);
+      else t1 = Math.min(t1, t);
+      if (t0 > t1) return null;
+    }
+  }
+  return [ax + t0 * dx, az + t0 * dz, ax + t1 * dx, az + t1 * dz];
+}
+
+function clipAll(segs: Segs, r: Rect): Segs {
+  const out: Segs = [];
+  for (let i = 0; i < segs.length; i += 4) {
+    const c = clipSeg(
+      segs[i] as number,
+      segs[i + 1] as number,
+      segs[i + 2] as number,
+      segs[i + 3] as number,
+      r,
+    );
+    if (c && Math.hypot(c[2] - c[0], c[3] - c[1]) > 0.01) out.push(...c);
+  }
+  return out;
+}
+
+/** Remove the parts of axis-aligned segments that lie inside `r`. */
+function subtractRect(segs: Segs, r: Rect): Segs {
+  const out: Segs = [];
+  for (let i = 0; i < segs.length; i += 4) {
+    const ax = segs[i] as number;
+    const az = segs[i + 1] as number;
+    const bx = segs[i + 2] as number;
+    const bz = segs[i + 3] as number;
+    if (az === bz) {
+      if (az <= r.z0 || az >= r.z1) {
+        out.push(ax, az, bx, bz);
+      } else {
+        if (ax < r.x0) out.push(ax, az, Math.min(bx, r.x0), bz);
+        if (bx > r.x1) out.push(Math.max(ax, r.x1), az, bx, bz);
+      }
+    } else if (ax <= r.x0 || ax >= r.x1) {
+      out.push(ax, az, bx, bz);
+    } else {
+      if (az < r.z0) out.push(ax, az, bx, Math.min(bz, r.z0));
+      if (bz > r.z1) out.push(ax, Math.max(az, r.z1), bx, bz);
+    }
+  }
+  return out;
+}
+
+function rectOutline(r: Rect, out: Segs): void {
+  out.push(r.x0, r.z0, r.x1, r.z0, r.x1, r.z0, r.x1, r.z1);
+  out.push(r.x1, r.z1, r.x0, r.z1, r.x0, r.z1, r.x0, r.z0);
+}
+
+function ring(cx: number, cz: number, radius: number, out: Segs): void {
+  const n = 40;
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2;
+    const b = ((i + 1) / n) * Math.PI * 2;
+    out.push(
+      cx + Math.cos(a) * radius,
+      cz + Math.sin(a) * radius,
+      cx + Math.cos(b) * radius,
+      cz + Math.sin(b) * radius,
+    );
+  }
+}
+
+/** Diamond lattice (both diagonals, `step` apart) over a rect. */
+function diamonds(r: Rect, step: number, out: Segs): void {
+  const w = r.x1 - r.x0;
+  const h = r.z1 - r.z0;
+  for (let c = 0; c <= w + h; c += step) {
+    out.push(r.x0 + c, r.z0, r.x0 + c - h, r.z1);
+  }
+  for (let k = -h; k <= w; k += step) {
+    out.push(r.x0 + k, r.z0, r.x0 + k + h, r.z1);
+  }
+}
+
+/** Kinderzimmer: soft diamond-patterned carpet with a border and a big round play rug. */
+function carpetSegs(room: Rect): Segs {
+  const segs: Segs = [];
+  diamonds(room, 0.7, segs);
+  const clipped = clipAll(segs, room);
+  for (const inset of [0.35, 0.5]) {
+    rectOutline(
+      { x0: room.x0 + inset, z0: room.z0 + inset, x1: room.x1 - inset, z1: room.z1 - inset },
+      clipped,
+    );
+  }
+  const cx = (room.x0 + room.x1) / 2;
+  const cz = (room.z0 + room.z1) / 2;
+  for (const radius of [4.6, 4.3, 2.2, 1.9]) ring(cx, cz, radius, clipped);
+  return clipped;
+}
+
+/** Wohnzimmer carpet islands: outline, inner border, diamond centre and fringe on the short ends. */
+function islandSegs(r: Rect): Segs {
+  const segs: Segs = [];
+  rectOutline(r, segs);
+  const inner: Rect = { x0: r.x0 + 0.3, z0: r.z0 + 0.3, x1: r.x1 - 0.3, z1: r.z1 - 0.3 };
+  rectOutline(inner, segs);
+  const lattice: Segs = [];
+  diamonds(inner, 1.1, lattice);
+  segs.push(...clipAll(lattice, inner));
+  for (let z = r.z0 + 0.15; z < r.z1; z += 0.25) {
+    segs.push(r.x0 - 0.25, z, r.x0, z, r.x1, z, r.x1 + 0.25, z);
+  }
+  return segs;
+}
+
+/** Plank rows (along x) with staggered butt joints every 2 m, for one patch. */
+function plankSegs(x0: number, z0: number, w: number, h: number): Segs {
+  const plank = 0.5;
+  const segs: Segs = [];
+  const rows = Math.round(h / plank);
+  for (let j = 0; j <= rows; j++) segs.push(x0, z0 + j * plank, x0 + w, z0 + j * plank);
+  for (let j = 0; j < rows; j++) {
+    const za = z0 + j * plank;
+    for (let jx = ((x0 + j * 0.7) % 2) + 0.4; jx < w; jx += 2) {
+      segs.push(x0 + jx, za, x0 + jx, za + plank);
+    }
+  }
+  return segs;
+}
+
+function tileSegs(x0: number, z0: number, w: number, h: number): Segs {
+  const segs: Segs = [];
+  for (let i = 0; i <= w; i++) segs.push(x0 + i, z0, x0 + i, z0 + h);
+  for (let j = 0; j <= h; j++) segs.push(x0, z0 + j, x0 + w, z0 + j);
+  return segs;
+}
+
+/** Floor line pattern for one patch of a room. `decor` = precomputed room-wide pattern. */
 function floorLines(
   pattern: FloorPattern,
+  decor: Segs | null,
   x0: number,
   z0: number,
   w: number,
   h: number,
 ): THREE.LineSegments | null {
-  if (pattern === 'none') return null;
-  const pts: number[] = [];
+  const patch: Rect = { x0, z0, x1: x0 + w, z1: z0 + h };
+  let segs: Segs;
+  if (pattern === 'tiles') segs = tileSegs(x0, z0, w, h);
+  else if (pattern === 'carpet') segs = clipAll(decor ?? [], patch);
+  else if (pattern === 'islands') {
+    segs = plankSegs(x0, z0, w, h);
+    for (const isl of WOHNZIMMER_ISLANDS) segs = subtractRect(segs, isl);
+    segs.push(...clipAll(decor ?? [], patch));
+  } else segs = plankSegs(x0, z0, w, h);
+  if (segs.length === 0) return null;
   const y = 0.012;
-  if (pattern === 'tiles') {
-    for (let i = 0; i <= w; i++) pts.push(x0 + i, y, z0, x0 + i, y, z0 + h);
-    for (let j = 0; j <= h; j++) pts.push(x0, y, z0 + j, x0 + w, y, z0 + j);
-  } else {
-    const plank = 0.5;
-    const rows = Math.round(h / plank);
-    for (let j = 0; j <= rows; j++) pts.push(x0, y, z0 + j * plank, x0 + w, y, z0 + j * plank);
-    // Staggered butt joints every 2 m.
-    for (let j = 0; j < rows; j++) {
-      const za = z0 + j * plank;
-      for (let jx = ((x0 + j * 0.7) % 2) + 0.4; jx < w; jx += 2) {
-        pts.push(x0 + jx, y, za, x0 + jx, y, za + plank);
-      }
-    }
+  const pts: number[] = [];
+  for (let i = 0; i < segs.length; i += 4) {
+    pts.push(
+      segs[i] as number,
+      y,
+      segs[i + 1] as number,
+      segs[i + 2] as number,
+      y,
+      segs[i + 3] as number,
+    );
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
@@ -256,11 +453,19 @@ export function buildHouse(map: HouseMap, reveal: RevealSystem): HouseBuild {
     floor.rotation.x = -Math.PI / 2;
     floor.position.set(x + w / 2, 0, y + h / 2);
     group.add(floor);
-    const pattern = ROOM_PATTERN[room.id] ?? 'none';
+    const pattern = ROOM_PATTERN[room.id] ?? 'planks';
+    const bounds: Rect = { x0: x, z0: y, x1: x + w, z1: y + h };
+    const decor =
+      pattern === 'carpet'
+        ? carpetSegs(bounds)
+        : pattern === 'islands'
+          ? WOHNZIMMER_ISLANDS.flatMap(islandSegs)
+          : null;
     for (let py = 0; py < h; py += FLOOR_PATCH) {
       for (let px = 0; px < w; px += FLOOR_PATCH) {
         const lines = floorLines(
           pattern,
+          decor,
           x + px,
           y + py,
           Math.min(FLOOR_PATCH, w - px),
@@ -319,17 +524,7 @@ export function buildHouse(map: HouseMap, reveal: RevealSystem): HouseBuild {
 
   // Windows on outer walls: cold moonlight panes, flare up with lightning.
   const paneGeo = new THREE.PlaneGeometry(1.6, 0.8);
-  const windows: [number, number, number][] = [
-    [14, 1.03, 0],
-    [20, 1.03, 0],
-    [33, 1.03, 0],
-    [36, 1.03, 0],
-    [1.03, 15, Math.PI / 2],
-    [1.03, 25, Math.PI / 2],
-    [46.97, 17, -Math.PI / 2],
-    [46.97, 27, -Math.PI / 2],
-  ];
-  for (const [x, z, rot] of windows) {
+  for (const [x, z, rot] of WINDOW_SPOTS) {
     const pane = new THREE.Mesh(paneGeo, windowMaterial);
     pane.position.set(x, 0.85, z);
     pane.rotation.y = rot;
@@ -355,7 +550,7 @@ export function buildHouse(map: HouseMap, reveal: RevealSystem): HouseBuild {
 }
 
 interface Placement {
-  key: PropKey;
+  key: PropKey | PrimKey;
   x: number;
   z: number;
   rot: number;
@@ -364,15 +559,33 @@ interface Placement {
 /** Hand-placed furniture (cell-centre coords). 'T' cells are interactables (entities/interactable). */
 const FURNITURE: Placement[] = [
   // Kinderzimmer
+  { key: 'shelf', x: 10, z: 12.2, rot: 0 },
+  { key: 'shelf', x: 1.22, z: 25, rot: Math.PI / 2 },
+  { key: 'toyChest', x: 15.45, z: 27, rot: -Math.PI / 2 },
+  { key: 'blocks', x: 6.5, z: 17.5, rot: 0.5 },
+  { key: 'dollhouse', x: 3.5, z: 24.5, rot: 0.3 },
+  { key: 'toyBear', x: 6.5, z: 28.5, rot: -0.6 },
   { key: 'bed', x: 2.5, z: 13.6, rot: Math.PI / 2 },
   { key: 'rug', x: 8, z: 23.5, rot: 0 },
   { key: 'cushion', x: 13.5, z: 29.3, rot: 0.4 },
   { key: 'toyBear', x: 7.5, z: 13, rot: 0.3 },
   // Flur
+  { key: 'shoeRack', x: 17.2, z: 14.5, rot: Math.PI / 2 },
+  { key: 'bench', x: 17.25, z: 23.5, rot: Math.PI / 2 },
+  { key: 'umbrellaStand', x: 29.5, z: 13.5, rot: 0 },
+  { key: 'mirror', x: 30.6, z: 22, rot: -Math.PI / 2 },
+  { key: 'pictureFrame', x: 20, z: 12.06, rot: 0 },
+  { key: 'pictureFrame', x: 17.06, z: 26.5, rot: Math.PI / 2 },
   { key: 'plant', x: 29.5, z: 29.4, rot: 0 },
   { key: 'rug', x: 24, z: 20, rot: Math.PI / 2 },
   { key: 'coatRack', x: 28.5, z: 16.5, rot: 0 },
   // Küche
+  { key: 'stove', x: 36, z: 12.5, rot: 0 },
+  { key: 'shelf', x: 33.8, z: 12.2, rot: 0 },
+  { key: 'bin', x: 45.5, z: 16.5, rot: 0 },
+  { key: 'wallClock', x: 45.94, z: 21, rot: -Math.PI / 2 },
+  { key: 'kitchenCabinet', x: 38, z: 30.4, rot: Math.PI },
+  { key: 'stool', x: 35.5, z: 21.5, rot: 0.4 },
   { key: 'fridge', x: 46.3, z: 13, rot: -Math.PI / 2 },
   { key: 'kitchenCabinet', x: 38, z: 12.6, rot: 0 },
   { key: 'kitchenCabinet', x: 40, z: 12.6, rot: 0 },
@@ -380,6 +593,12 @@ const FURNITURE: Placement[] = [
   { key: 'chair', x: 42.7, z: 19.5, rot: -Math.PI / 2 },
   { key: 'chair', x: 39.3, z: 19.5, rot: Math.PI / 2 },
   // Wohnzimmer
+  { key: 'shelf', x: 17, z: 1.2, rot: 0 },
+  { key: 'shelf', x: 8.22, z: 6.5, rot: Math.PI / 2 },
+  { key: 'sideTable', x: 22.2, z: 6.2, rot: 0 },
+  { key: 'sideTable', x: 32.5, z: 6.4, rot: 0 },
+  { key: 'floorLamp', x: 20.5, z: 2.5, rot: 0 },
+  { key: 'pictureFrame', x: 21.6, z: 1.06, rot: 0 },
   { key: 'bookcase', x: 9.5, z: 1.5, rot: 0 },
   { key: 'tvCabinet', x: 29.5, z: 1.5, rot: 0 },
   { key: 'rug', x: 27.5, z: 4.5, rot: 0 },
@@ -390,10 +609,10 @@ const FURNITURE: Placement[] = [
 ];
 
 /** Flat props the chicken may walk over. */
-const WALKABLE: ReadonlySet<PropKey> = new Set<PropKey>(['rug', 'cushion']);
+const WALKABLE: ReadonlySet<string> = new Set(['rug', 'cushion']);
 
 export interface PlacedProp {
-  key: PropKey;
+  key: PropKey | PrimKey;
   label: string;
   object: THREE.Group;
 }
@@ -406,7 +625,9 @@ export async function placeProps(
 ): Promise<PlacedProp[]> {
   const placements: Placement[] = FURNITURE;
 
-  const loaded = await Promise.all(placements.map((p) => loadProp(p.key)));
+  const loaded = await Promise.all(
+    placements.map((p) => (isPrimKey(p.key) ? buildPrim(p.key) : loadProp(p.key))),
+  );
   const out: PlacedProp[] = [];
   const box = new THREE.Box3();
   placements.forEach((p, i) => {
@@ -424,8 +645,12 @@ export async function placeProps(
     });
     build.group.add(object);
     reveal.add(object, WALKABLE.has(p.key) ? 'floor' : 'prop', `${p.key}-${i}`);
-    out.push({ key: p.key, label: PROP_INFO[p.key].label, object });
-    if (WALKABLE.has(p.key)) return;
+    out.push({
+      key: p.key,
+      label: isPrimKey(p.key) ? PRIM_INFO[p.key].label : PROP_INFO[p.key].label,
+      object,
+    });
+    if (WALKABLE.has(p.key) || (isPrimKey(p.key) && !PRIM_INFO[p.key].solid)) return;
     box.setFromObject(object);
     for (let y = Math.floor(box.min.z + 0.2); y <= Math.floor(box.max.z - 0.2); y++) {
       for (let x = Math.floor(box.min.x + 0.2); x <= Math.floor(box.max.x - 0.2); x++) {

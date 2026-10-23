@@ -5,8 +5,8 @@ import { moveAndSlide, type CollisionGrid } from '@/systems/collision';
 const SPEED = 3.2;
 const ACCEL = 14;
 const HOP_RATE = 3.4; // hops per second
-const HOP_HEIGHT = 0.16;
-const BODY_HALF = 0.22;
+const HOP_HEIGHT = 0.22;
+const BODY_HALF = 0.28;
 const TURN = 14;
 
 export interface Chicken {
@@ -30,13 +30,35 @@ export interface Chicken {
 export function createChickenEntity(x: number, z: number): Chicken {
   const model = createChicken();
   const object = new THREE.Group();
-  // Slightly oversized for readability from the 3/4 camera.
-  model.group.scale.setScalar(1.3);
+  // Oversized toy scale (1.6x P1) so the silhouette reads from the 3/4 camera.
+  model.group.scale.setScalar(2.08);
   object.add(model.group);
 
+  // X-ray silhouette: drawn only where walls/furniture are in front of the chicken. It renders
+  // after the house (renderOrder 5) but before the chicken itself (10), so the chicken never
+  // shows its own hidden parts through itself.
+  const xray = new THREE.MeshBasicMaterial({
+    color: 0x9a7414,
+    depthWrite: false,
+    depthFunc: THREE.GreaterDepth,
+    fog: false,
+  });
+  const parts: THREE.Mesh[] = [];
+  model.group.traverse((o) => {
+    if (o instanceof THREE.Mesh) parts.push(o);
+  });
+  for (const m of parts) {
+    m.renderOrder = 10;
+    const ghost = new THREE.Mesh(m.geometry, xray);
+    ghost.renderOrder = 5;
+    ghost.userData.noReveal = true;
+    m.add(ghost);
+  }
+
   // Small flickering glow so the chicken is never in total darkness (~2 tiles).
-  const glow = new THREE.PointLight(0xffd9a0, 5, 4.2, 1.6);
-  glow.position.set(0, 0.9, 0.1);
+  // Sits well above the head so it lights the floor, not the chicken (no blown-out bloom).
+  const glow = new THREE.PointLight(0xffd9a0, 9, 6, 1.4);
+  glow.position.set(0, 3.2, 0.8);
   object.add(glow);
 
   const pos = { x, z };
@@ -89,13 +111,15 @@ export function createChickenEntity(x: number, z: number): Chicken {
       impulse *= Math.exp(-dt * 9);
       sq += impulse * Math.sin(time * 40);
       model.squash(sq);
+      // Legs dangle and swing while airborne; beak opens with the scream charge.
+      model.pose(self.charge, moving ? Math.sin(ph * Math.PI * 2) : 0);
 
       object.position.set(pos.x, y, pos.z);
       object.rotation.y = facing;
       // Shiver while charging.
       model.group.rotation.z = self.charge > 0 ? Math.sin(time * 55) * 0.06 * self.charge : 0;
 
-      glow.intensity = 5 + Math.sin(time * 13) * 0.35 + Math.sin(time * 31.7) * 0.25;
+      glow.intensity = 9 + Math.sin(time * 13) * 0.35 + Math.sin(time * 31.7) * 0.25;
     },
     teleport(nx, nz) {
       pos.x = nx;

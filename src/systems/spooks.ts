@@ -123,9 +123,13 @@ export function createSpookManager(
         const col = (i % 5) - 2;
         const st = s.state;
         settle(st, x + col * 0.9, z - 1.4 - row * 0.9 - Math.abs(col) * 0.2);
-        // They were always close: appear right behind the chicken.
-        st.x = st.homeX + (col === 0 ? 0.3 : 0);
-        st.z = st.homeZ - 0.6;
+        // They drift in from the dark behind the chicken (rest mode walks home at returnSpeed,
+        // so ~3.6 m back takes ~3 s); closer if a wall is in the way.
+        st.x = st.homeX + col * 0.5;
+        for (let back = 3.6 + row * 0.5; back >= 0.6; back -= 0.6) {
+          st.z = st.homeZ - back;
+          if (wallFree(st.x, st.z)) break;
+        }
         i++;
       }
     },

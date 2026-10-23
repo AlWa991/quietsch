@@ -110,6 +110,9 @@ export function deserialize(raw: string | null, defaults: GameState): GameState 
     time: Math.max(0, num(s.time, 0)),
     rooms: rooms(s.rooms),
     missions: missions(s.missions, defaults.missions),
+    revealed: Array.isArray(s.revealed)
+      ? [...new Set(s.revealed.filter((id): id is string => typeof id === 'string'))]
+      : [],
   };
 }
 

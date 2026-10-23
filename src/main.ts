@@ -225,6 +225,10 @@ function boot(root: HTMLElement): void {
   }
 
   // --- Spooks -----------------------------------------------------------------------
+  /** Catch freeze-frame (s): simulation paused, camera close-up, then `afterFreeze`. */
+  const FREEZE = 0.5;
+  let freeze = 0;
+  let afterFreeze: (() => void) | null = null;
   const spooks = createSpookManager(ctx.scene, reveal, wallsOnly, {
     onCaught(s) {
       if (!playing()) return;
@@ -235,21 +239,29 @@ function boot(root: HTMLElement): void {
       store.emit({ type: 'feathers', amount: -res.lost });
       sfx.caught();
       rig.shake(0.35, 0.25);
+      // Freeze-frame: the world stops, the camera snaps onto the spook, then the knock-back.
+      rig.closeUp((s.state.x * 2 + chicken.pos.x) / 3, (s.state.z * 2 + chicken.pos.z) / 3, FREEZE);
+      reveal.hit(s.reveal);
+      freeze = FREEZE;
       ui.toast(T.caught, T.caughtSub(Math.round(progress.stats.lossShare * 100)));
       if (res.lost > 0) {
         const p = toScreen(chicken.pos.x, 1.2, chicken.pos.z);
         ui.spawnFloat(`−${res.lost}`, p.sx, p.sy, 'danger');
       }
-      if (res.panic) {
-        teleportTo(korb.x + 0.9, korb.z - 0.6);
-        void card('panic');
-      } else {
-        // Knock the chicken away from the spook so it can flee.
-        const dx = chicken.pos.x - s.state.x;
-        const dz = chicken.pos.z - s.state.z;
-        const len = Math.hypot(dx, dz) || 1;
-        moveAndSlide(grid, chicken.pos, (dx / len) * 1.2, (dz / len) * 1.2, 0.22);
-      }
+      const sx = s.state.x;
+      const sz = s.state.z;
+      afterFreeze = () => {
+        if (res.panic) {
+          teleportTo(korb.x + 0.9, korb.z - 0.6);
+          void card('panic');
+        } else {
+          // Knock the chicken away from the spook so it can flee.
+          const dx = chicken.pos.x - sx;
+          const dz = chicken.pos.z - sz;
+          const len = Math.hypot(dx, dz) || 1;
+          moveAndSlide(grid, chicken.pos, (dx / len) * 1.2, (dz / len) * 1.2, 0.28);
+        }
+      };
     },
     onDelivered() {
       store.set({ ghostlights: store.get().ghostlights + 1 });
@@ -271,6 +283,7 @@ function boot(root: HTMLElement): void {
   let missionsRef: ReturnType<typeof createMissions> | null = null;
   const sonar = createSonarSystem(ctx.scene, reveal, floorMask, {
     onFirstReveal(r) {
+      store.set({ revealed: [...store.get().revealed, r.id] });
       progress.addFeathers(SONAR.featherBase, r.center.x, r.center.z);
       const p = toScreen(r.center.x, r.center.y + 0.6, r.center.z);
       ui.spawnFloat(`+${SONAR.featherBase}`, p.sx, p.sy, 'feather');
@@ -304,6 +317,7 @@ function boot(root: HTMLElement): void {
     },
     onThunder: (i) => ambience.thunder(i),
     shake: (a, t) => rig.shake(a, t),
+    flash: (v) => postfx.setFlash(v),
   });
 
   const missions = createMissions({
@@ -452,10 +466,10 @@ function boot(root: HTMLElement): void {
     let x = r.bounds.x + r.bounds.w / 2;
     let z = r.bounds.y + r.bounds.h / 2;
     // Nudge off furniture if the exact centre is blocked.
-    for (let i = 0; i < 12 && !boxFree(grid, x, z, 0.25); i++) {
+    for (let i = 0; i < 12 && !boxFree(grid, x, z, 0.3); i++) {
       x += i % 2 === 0 ? i + 1 : -(i + 1);
     }
-    for (let i = 0; i < 12 && !boxFree(grid, x, z, 0.25); i++) z += 1;
+    for (let i = 0; i < 12 && !boxFree(grid, x, z, 0.3); i++) z += 1;
     return { x, z };
   };
   const teleport = (room: string | number): void => {
@@ -479,9 +493,16 @@ function boot(root: HTMLElement): void {
   }
 
   // --- Props (async) -----------------------------------------------------------------
-  placeProps(map, house, reveal).catch((err: unknown) => {
-    console.warn('[QUIETSCH] props failed to load', err);
-  });
+  /** Props revealed in a saved run never pay first-reveal feathers again. */
+  const applyRevealed = (): void => {
+    const done = new Set(store.get().revealed);
+    for (const r of reveal.items) if (done.has(r.id)) r.rewarded = true;
+  };
+  placeProps(map, house, reveal)
+    .then(applyRevealed)
+    .catch((err: unknown) => {
+      console.warn('[QUIETSCH] props failed to load', err);
+    });
 
   // --- Title -------------------------------------------------------------------------
   let saved: GameState | null = null;
@@ -493,6 +514,7 @@ function boot(root: HTMLElement): void {
   void showTitle(root, saved !== null).then((choiceTitle) => {
     if (choiceTitle === 'continue' && saved) {
       store.set(saved);
+      applyRevealed();
       missions.restore();
       applyLoadout();
       setPhase('play');
@@ -530,7 +552,17 @@ function boot(root: HTMLElement): void {
   let shownProgress = -1;
 
   ctx.renderer.setAnimationLoop(() => {
-    const dt = Math.min(ctx.clock.getDelta(), 0.1);
+    const rawDt = Math.min(ctx.clock.getDelta(), 0.1);
+    let dt = rawDt;
+    if (freeze > 0) {
+      freeze -= rawDt;
+      dt = 0;
+      if (freeze <= 0 && afterFreeze) {
+        const next = afterFreeze;
+        afterFreeze = null;
+        next();
+      }
+    }
     ctx.renderer.info.reset();
     const time = ctx.clock.elapsedTime;
     const active = playing();
@@ -558,7 +590,8 @@ function boot(root: HTMLElement): void {
     frame.chickenZ = chicken.pos.z;
     frame.chickenMoving = chicken.moving;
     frame.hopNoise = progress.stats.hopNoise;
-    frame.active = active || phase === 'finale' || phase === 'choice' || phase === 'ending';
+    frame.active =
+      dt > 0 && (active || phase === 'finale' || phase === 'choice' || phase === 'ending');
     spooks.update(frame);
     const danger = active
       ? Math.min(1, Math.max(0, (8 - spooks.nearest) / 6.5) + (spooks.chasing ? 0.25 : 0))
@@ -606,8 +639,8 @@ function boot(root: HTMLElement): void {
     missions.update(dt, time);
     lightning.update(dt, chicken.pos.x, chicken.pos.z);
     reveal.update(dt);
-    rig.update(dt, chicken.pos.x, chicken.pos.z, chicken.vel.x, chicken.vel.z);
-    postfx.render(dt);
+    rig.update(rawDt, chicken.pos.x, chicken.pos.z, chicken.vel.x, chicken.vel.z, grid);
+    postfx.render(rawDt);
 
     if (debugEl) {
       fpsFrames++;

@@ -83,6 +83,8 @@ export interface ShopItem {
   kind: ShopItemKind;
   /** Not implemented in gameplay yet: purchasable, labelled "bald verfügbar". */
   comingSoon?: boolean;
+  /** Found in the Keller (P4), never listed in the shop. */
+  secret?: boolean;
 }
 
 /** Items, prices and flavour texts from GDD "Shop „Bellos Korb“". */
@@ -143,6 +145,7 @@ export const SHOP_ITEMS: readonly ShopItem[] = [
     price: 250,
     text: 'Kosmetisch. Für Legenden, die im Keller gefunden wurden.',
     kind: 'hat',
+    secret: true,
   },
 ];
 

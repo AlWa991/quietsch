@@ -56,6 +56,18 @@ describe('spook fsm', () => {
     expect(Math.abs(16 - s.x)).toBeLessThan(before);
   });
 
+  it('chasing sock outruns the chicken (>= 1.1x) and locks on when close', () => {
+    expect(SPOOK.chaseSpeed).toBeGreaterThanOrEqual(3.2 * 1.1);
+    const s = createSpook(10, 10);
+    hearSound(s, 16, 10);
+    run(s, input(), SPOOK.alertTime + 0.1);
+    // Chicken 2 m away, off the heard line: the sock homes in on it instead of the sound.
+    const near = input({ chickenX: 10, chickenZ: 12 });
+    run(s, near, 0.3);
+    expect(s.targetX).toBe(10);
+    expect(s.targetZ).toBe(12);
+  });
+
   it('chase reaches the heard position, lingers, then returns home and wanders', () => {
     const s = createSpook(10, 10);
     hearSound(s, 13, 10);

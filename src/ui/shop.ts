@@ -66,6 +66,7 @@ export function createShop(root: HTMLElement, store: Store, hooks: ShopHooks): P
     panel.append(head, el('p', 'q-shop__sub', SHOP.subtitle));
     const list = el('div', 'q-shop__list');
     for (const item of SHOP_ITEMS) {
+      if (item.secret) continue;
       const row = el('div', `q-shop__item q-shop__item--${item.kind}`);
       const info = el('div', 'q-shop__info');
       const name = el('div', 'q-shop__name', item.name);

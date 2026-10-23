@@ -7,6 +7,8 @@ export default tseslint.config(
       'dist/**',
       'node_modules/**',
       'e2e/screenshots/**',
+      // Throwaway playtest/screenshot harnesses (plain Node + browser globals).
+      'e2e/playtest/**',
       'test-results/**',
       'playwright-report/**',
       '.claude/**',
