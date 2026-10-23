@@ -18,6 +18,11 @@ await page.waitForFunction(() => window.__game?.ready === true, undefined, { tim
 await page.locator('.q-title').waitFor({ state: 'visible', timeout: 30000 });
 await page.waitForTimeout(2000);
 await page.screenshot({ path: 'e2e/screenshots/live-title.png' });
-console.log('requests', reqs.length, 'glb/font:', reqs.filter((r) => /glb|woff|ttf/.test(r)).length);
+console.log(
+  'requests',
+  reqs.length,
+  'glb/font:',
+  reqs.filter((r) => /glb|woff|ttf/.test(r)).length,
+);
 console.log('problems', JSON.stringify(bad));
 await browser.close();
