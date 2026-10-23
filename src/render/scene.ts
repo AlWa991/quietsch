@@ -20,10 +20,12 @@ export function createRenderContext(): RenderContext {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
   const scene = new THREE.Scene();
-  const navy = new THREE.Color(0x070b16);
+  const navy = new THREE.Color(0x03050b);
   scene.background = navy;
-  scene.fog = new THREE.Fog(navy, 14, 38);
-  scene.add(new THREE.AmbientLight(0x3a4a70, 0.8));
+  // Camera sits ~13.4 m from the chicken: fog starts just behind it so far rooms sink into black.
+  scene.fog = new THREE.Fog(navy, 13.5, 30);
+  // Near-zero ambient: unlit areas are truly dark, only silhouettes survive.
+  scene.add(new THREE.AmbientLight(0x2a3a60, 0.06));
 
   const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 200);
   const target = new THREE.Vector3(24, 0, 24);

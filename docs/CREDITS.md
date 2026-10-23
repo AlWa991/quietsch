@@ -19,3 +19,8 @@
 ## Tools
 - Claude Code (Anthropic) für Konzept, Code und Bookkeeping
 - Vite, Vitest, Playwright, ESLint, Prettier
+
+## 3D-Assets – verwendete Dateien (Stand 2026-10-23)
+- Kenney Furniture Kit, Version 2.0, CC0 1.0. https://kenney.nl/assets/furniture-kit
+- Verwendet (Quelle `Models/GLTF format/*.glb` -> `public/models/`): bedSingle -> bed, table -> table, chair -> chair, loungeSofa -> sofa, kitchenFridgeLarge -> fridge, kitchenCabinet -> kitchen-cabinet, bookcaseClosed -> bookcase, lampRoundFloor -> floor-lamp, cardboardBoxClosed -> box, coatRackStanding -> coat-rack, rugRound -> rug, cabinetTelevision -> tv-cabinet, pottedPlant -> plant, bear -> toy-bear, pillow -> cushion, radio -> radio
+- Materialien werden zur Laufzeit abgedunkelt und entsättigt (`src/world/assets.ts`).

@@ -7,10 +7,10 @@ Legende: TODO · WIP · REVIEW · DONE · CUT · (Modell) · Owner-Dateien exklu
 - [x] T03 (Orchestrator) gh repo create AlWa991/quietsch --public, DONE: https://github.com/AlWa991/quietsch existiert. Pages-Aktivierung auf gh-pages verschoben nach T14.
 
 ## P1 Vertical Slice
-- [ ] T04 (Opus-Lead) world/, systems/{camera,collision,sonar,lightning}, render/, entities/chicken, 1 Spuk, Federn+HUD · DoD: laufen, kurz/lang schreien, Reveal, Blitz, Federn zählen hoch
-- [ ] T05 (Sonnet) Kenney Furniture Kit nach public/models + CREDITS.md, world/assets.ts Loader, Hähnchen aus Primitiven inkl. Hut-Anker · DoD: alle Asset-Keys aus ARCHITECTURE.md laden
-- [ ] T06 (Sonnet) ui/styles.css Designsystem + Komponenten HUD/Toast/Floating/Shop/StoryCard/Results · DoD: Storybook-ähnliche Demo-Route ?ui=1
-- [ ] T07 (Sonnet) audio/sfx.ts (ZzFX), audio/ambience.ts (Wind, Donner, Drone, Herzschlag) · DoD: Demo-Route ?audio=1
+- [x] T04 DONE (Opus-Lead) world/, systems/{camera,collision,input,sonar,lightning}, render/reveal, entities/{chicken,spook}, core/{sonar,spook-fsm} + Tests, Federn+HUD, ?debug=1, __game.actions · DoD: laufen, kurz/lang schreien, Reveal, Blitz, Federn zählen hoch
+- [x] T05 DONE (Sonnet) Kenney Furniture Kit 2.0 (16 GLB) nach public/models + CREDITS.md, world/assets.ts Loader, Hähnchen aus Primitiven inkl. Hut-Anker · DoD: alle Asset-Keys laden ohne 404 (e2e prüft 4xx)
+- [x] T06 DONE (Sonnet) ui/styles.css Designsystem + HUD/Toast/Floating/StoryCard/Mission, Fonts self-hosted (Shop/Results → P2) · DoD: Demo-Route ?ui=1
+- [x] T07 DONE (Sonnet) audio/sfx.ts (reines WebAudio statt ZzFX, s. SESSION_STATE), audio/ambience.ts (Wind, Donner, Drone, Herzschlag) · DoD: Demo-Route ?audio=1
 - [ ] T08 (Opus, fresh) Playtest 1 Kurzbefund
 
 ## P2 Systeme & Content
@@ -34,4 +34,5 @@ Legende: TODO · WIP · REVIEW · DONE · CUT · (Modell) · Owner-Dateien exklu
 - [ ] T23 (Sonnet) finaler Deploy + Abgabetext · [ ] T24 (Haiku) Chat-Log-Summary, SESSION_STATE final
 
 ## DONE
+- [x] P1 Vertical Slice (T04–T07), 2026-10-23: typecheck/lint/format/test (22)/build/e2e (4) grün, Screenshots e2e/screenshots/{boot,reveal}.png
 - [x] T03 (Orchestrator) gh repo create AlWa991/quietsch --public (Repo: https://github.com/AlWa991/quietsch), Pages-Aktivierung verschoben nach T14
