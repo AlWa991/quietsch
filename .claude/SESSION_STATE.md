@@ -1,6 +1,6 @@
 # SESSION_STATE – QUIETSCH!
 **Live: https://alwa991.github.io/quietsch/** (T14 done via gh-pages, Pages built; T14a Review-Fixes in 04669e4)
-Stand: 2026-10-23 · Orchestrator: Fable (Phasen-Ebene) · Phase: P4 Stretch DONE (T15, T16, T19, T20 + Toast-Fix auf main, nicht deployed) → nächster Schritt Deploy durch Orchestrator, dann P5 (T21 Playtest 3, G2)
+Stand: 2026-10-23 · Orchestrator: Fable (Phasen-Ebene) · Phase: P5 Polish & Balancing DONE (T22, Commits 5e28775..eb2567f auf main, nicht deployed) → nächster Schritt Gate 2 (G2 Final-Review, Sonnet fresh; ggf. Playtest 3), danach Deploy durch Orchestrator
 
 ## Projekt
 3D-Browser-Game (Three.js) für 24h-Contest. Theme „It's spooky outside“, Objekt Quietschhähnchen. GDD: docs/GDD.md · Architektur: docs/ARCHITECTURE.md · Tasks: .claude/TASKBOARD.md
@@ -64,6 +64,19 @@ Stand: 2026-10-23 · Orchestrator: Fable (Phasen-Ebene) · Phase: P4 Stretch DON
 - Debug: `actions.spooks()`, `actions.bait()`, `window.__game.pos`; Tasten 1–6 Raum-Teleport (5 Keller, 6 Dachboden).
 - e2e Mission-1-Schritt mit Retry (Socke stieß das Hähnchen nach dem Schrei weg → war flaky).
 
+### P5-Entscheidungen (Polish, Opus-Lead)
+- Rudi: `RUDI.speed` 3,0 (< Hähnchen 3,2), `SpookState.wake` 1,5 s nach `wakeRudi` (taub, steht, Auge flackert). Spawn (39,20). Fenster-Socke (38,7).
+- Fang: `invulnerable` in main.ts = Freeze 0,5 + 2 s; währenddessen `frame.ignore` (wie Halsband) und Hähnchen blinkt; zweiter Fang im selben Frame wird verworfen.
+- Economy: `SONAR.comboStep 5`, `comboCap 40`, `comboBonus(n)` ohne base-Parameter (comboMultiplier entfernt). `RANK_XP` 0/250/700/1400/2400. Ein Lauf inkl. Keller ≈ 520 Federn / ≈ 920 XP → Rang Hahn (Schreihals/Legende in einem Lauf praktisch nicht erreichbar, bewusst laut Spec).
+- Pacing: `lightning.fast` (8–12 s) = Wohnzimmer && Uhr offen. `core/story.doorbellDue` (120 s oder 2. Schloss). `InteractableDef.reach` (Haustür 2,6 m).
+- Hand-Schreck: `popHand(s, x, z)` setzt die Hand 1,7 m neben das Hähnchen, zurück nach Hause beim Abtauchen; Entity skaliert 1,9× und dreht zur Kamera; ein gemeinsames Scare-PointLight in missions.ts; `MissionDeps.punch`.
+- Panik: Herzen sofort voll, `showStoryCard(card, autoCloseMs)` 1500 ms. Tutorial-Karte `peaceHint` (Flag `card:peaceHint`), Nachtlicht pulsiert 5 s.
+- Enden: Overlay transparent, Panel rechts rgba(…, 0,7), Kamera +2,6 m nach rechts verschoben; A: Hähnchen in der Tür, `endLight` kalt + Blitz alle 2,6–4,4 s; B: alle Spuks `restAtKorb` (Befriedet-Zähler vorher erfasst), warmes Licht.
+- Keller verborgen: `Revealable.muted` (hit/sonar ignorieren), Keller-Cap (y 0,37, z ≥ 32) über den Cutaway-Wänden, Keller-Props/Interactables/Boden `visible=false` bis `openPassage(HOLLOW_CELL)`. Keller-Socke unsichtbar + taub bis offen.
+- Follower: `FOLLOW.snap` 6 m → Snap hinter das Hähnchen. Krone: Gold 0xc8901c, dunkler BackSide-Rand, rote Steine.
+- Logo: Inter 600 + `-webkit-text-stroke` (Pixelify wird nirgends mehr verwendet; Fonts liegen noch in public/fonts).
+- Commit-Trailer: Co-Authored-By Claude Opus 5.5 (Systemvorgabe der Session) statt „Fable 5.1“ aus dem Orchestrator-Briefing.
+
 ## Kommandos
 pnpm dev · pnpm build · pnpm test · pnpm e2e · pnpm typecheck · pnpm lint · pnpm format:check · pnpm deploy
 Debug: `?debug=1` (FPS, Spuk-Hörradius, Tasten 1–6 Raum-Teleport, L = Blitz) · `?ui=1` UI-Demo · `?audio=1` Audio-Demo
@@ -71,8 +84,8 @@ E2E/Playtest-Hooks: `window.__game.{phase, modal, state}` · `actions.{scream(ho
 docker compose up -d --build && curl -s -o /dev/null -w "%{http_code}" localhost:8080/health   (ab T11)
 
 ## Done / Next / Blocker
-Done: P0, P1 (T04–T07), P2 (T09–T11), T13, T14, P4 (T15, T16, T19, T20) · Next: Deploy (Orchestrator), P5 Playtest 3 (Opus fresh) + G2 Final-Review (Sonnet fresh) · Blocker: keine
-Offen/bekannt: Swiftshader-FPS 10–17 (Software-GL), echte GPU nicht gemessen; Bundle > 500 kB; Balancing Combo/Ränge weiter offen; Follower laufen ohne Pathfinding (rutschen an Wänden entlang, bleiben bei Teleport zurück); Keller ist vor dem Öffnen im Diorama als dunkler Raum sichtbar (per Sonar enthüllbar); Krone (gold) auf gelbem Hähnchen wenig kontrastreich; T17/T18 nicht beauftragt; `zzfx` ungenutzt in package.json (review-1 #1/#2 offen).
+Done: P0, P1 (T04–T07), P2 (T09–T11), T13, T14, P4 (T15, T16, T19, T20), P5 T22 · Next: Gate 2 (G2 Final-Review Sonnet fresh, optional Playtest 3), dann Deploy (Orchestrator) · Blocker: keine
+Offen/bekannt: Swiftshader-FPS 10–17 (Software-GL), echte GPU nicht gemessen; Bundle > 500 kB; Laufzeit Mensch geschätzt 8–12 min (nicht gemessen, Ziel 10–14 nur mit Keller/Dachboden); Rang endet bei Hahn (Schwellen laut Spec); Taschenlampe nach Fund weiter ohne Pflichtzweck (Keller nicht dunkler gemacht); Follower ohne Pathfinding (Snap > 6 m mildert); Hand-Schreck-Hand über Wänden möglich, wenn der Schrei direkt an einer Wand fällt; T17/T18 nicht beauftragt; `zzfx` ungenutzt in package.json (review-1 #1/#2 offen).
 
 ## Rekonstruktions-Check
 1. Protagonist? 2. Engine? 3. Was öffnet die Haustür? 4. Phase? 5. Offene Tasks?
