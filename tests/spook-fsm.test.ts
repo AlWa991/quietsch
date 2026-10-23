@@ -58,6 +58,18 @@ describe('spook fsm', () => {
     expect(Math.abs(16 - s.x)).toBeLessThan(before);
   });
 
+  it('alert pause gives the chicken over a second before the chase starts', () => {
+    expect(SPOOK.alertTime).toBeGreaterThanOrEqual(1.2);
+    expect(SPOOK.huntRadius).toBeLessThanOrEqual(2.5);
+    const s = createSpook(10, 10);
+    hearSound(s, 13, 10);
+    run(s, input(), 1.0);
+    expect(s.mode).toBe('alert');
+    expect(s.x).toBe(10);
+    run(s, input(), SPOOK.alertTime - 1.0 + 0.1);
+    expect(s.mode).toBe('chase');
+  });
+
   it('chasing sock outruns the chicken (>= 1.1x) and locks on when close', () => {
     expect(SPOOK.chaseSpeed).toBeGreaterThanOrEqual(3.2 * 1.1);
     const s = createSpook(10, 10);

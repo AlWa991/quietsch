@@ -3,6 +3,7 @@ import {
   canOpenHollow,
   grantHat,
   HOLLOW_COOLDOWN,
+  HOLLOW_LOCK_FLAG,
   hearHollow,
   KELLER_FLAG,
   openDonation,
@@ -23,8 +24,18 @@ import {
 } from '@/world/house-map';
 
 describe('keller: hollow wall', () => {
-  it('sounds hollow on a scream and unlocks E', () => {
+  it('stays mute before lock 1 (mission 1) is open', () => {
     const f: Flags = {};
+    expect(hearHollow(f, false, 5, -10)).toBe('ignored');
+    expect(f[KELLER_FLAG.heard]).toBeUndefined();
+    expect(canOpenHollow(f)).toBe(false);
+    f[HOLLOW_LOCK_FLAG] = true;
+    expect(hearHollow(f, false, 6, -10)).toBe('hohl');
+    expect(canOpenHollow(f)).toBe(true);
+  });
+
+  it('sounds hollow on a scream and unlocks E', () => {
+    const f: Flags = { [HOLLOW_LOCK_FLAG]: true };
     expect(canOpenHollow(f)).toBe(false);
     expect(hearHollow(f, false, 5, -10)).toBe('hohl');
     expect(f[KELLER_FLAG.heard]).toBe(true);
@@ -32,20 +43,20 @@ describe('keller: hollow wall', () => {
   });
 
   it('ignores toy box echoes and bait squeaks', () => {
-    const f: Flags = {};
+    const f: Flags = { [HOLLOW_LOCK_FLAG]: true };
     expect(hearHollow(f, true, 5, -10)).toBe('ignored');
     expect(canOpenHollow(f)).toBe(false);
   });
 
   it('rate-limits the reaction', () => {
-    const f: Flags = {};
+    const f: Flags = { [HOLLOW_LOCK_FLAG]: true };
     expect(hearHollow(f, false, 5, -10)).toBe('hohl');
     expect(hearHollow(f, false, 5 + HOLLOW_COOLDOWN / 2, 5)).toBe('cooldown');
     expect(hearHollow(f, false, 5 + HOLLOW_COOLDOWN, 5)).toBe('hohl');
   });
 
   it('opens once and stays silent afterwards', () => {
-    const f: Flags = {};
+    const f: Flags = { [HOLLOW_LOCK_FLAG]: true };
     expect(openHollow(f)).toBe(false);
     hearHollow(f, false, 0, -10);
     expect(openHollow(f)).toBe(true);

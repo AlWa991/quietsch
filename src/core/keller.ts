@@ -19,9 +19,12 @@ export type Flags = Record<string, boolean>;
 
 export type HollowReaction = 'hohl' | 'cooldown' | 'ignored';
 
+/** The wall stays mute until the first lock is open (mission 1 done). */
+export const HOLLOW_LOCK_FLAG = 'lock:1';
+
 /**
  * The sonar ring reached the hollow wall. Only the chicken's own scream counts (no toy box
- * echo, no bait squeak) and only while the wall is closed. Mutates `flags`.
+ * echo, no bait squeak), only after lock 1 and only while the wall is closed. Mutates `flags`.
  */
 export function hearHollow(
   flags: Flags,
@@ -29,7 +32,7 @@ export function hearHollow(
   time: number,
   lastReaction: number,
 ): HollowReaction {
-  if (echo || flags[KELLER_FLAG.open]) return 'ignored';
+  if (echo || flags[KELLER_FLAG.open] || flags[HOLLOW_LOCK_FLAG] !== true) return 'ignored';
   flags[KELLER_FLAG.heard] = true;
   return time - lastReaction < HOLLOW_COOLDOWN ? 'cooldown' : 'hohl';
 }

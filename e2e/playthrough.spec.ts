@@ -205,7 +205,8 @@ test('keller: hollow wall, stairs, twist 2 and Krone', async ({ page }) => {
   await boot(page);
   await startPlay(page);
 
-  // A short squeak next to the hollow wall in the Flur: it knocks back.
+  // The wall only answers after mission 1 (lock 1). A short squeak next to it knocks back.
+  await page.evaluate(() => window.__game?.actions?.openLock(1));
   await page.evaluate(() => window.__game?.actions?.warp(19.5, 30.2));
   await page.waitForTimeout(400);
   await page.evaluate(() => window.__game?.actions?.scream(0.1));

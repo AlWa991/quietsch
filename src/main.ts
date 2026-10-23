@@ -712,6 +712,7 @@ function boot(root: HTMLElement): void {
   const objective: Objective = { text: '', progress: 0, goal: 0 };
   let shownText = '';
   let shownProgress = -1;
+  let lastRoom = roomIdAt(chicken.pos.x, chicken.pos.z);
   // The Keller swallows light: fog closes in while the chicken is down there.
   const fog = ctx.scene.fog instanceof THREE.Fog ? ctx.scene.fog : null;
   const FOG_HOUSE = { near: fog?.near ?? 13.5, far: fog?.far ?? 30 };
@@ -769,6 +770,13 @@ function boot(root: HTMLElement): void {
     frame.active =
       dt > 0 && (active || phase === 'finale' || phase === 'choice' || phase === 'ending');
     spooks.update(frame);
+    // Entering the Keller: its sock cannot catch for a moment (no ambush at the stairs).
+    if (room === 'keller' && lastRoom !== 'keller') {
+      for (const sp of spooks.list) {
+        if (inKeller(sp.state.x, sp.state.z)) sp.state.cooldown = Math.max(sp.state.cooldown, 3);
+      }
+    }
+    lastRoom = room;
     if (!kellerOpen) {
       for (const sp of spooks.list) {
         const hide = inKeller(sp.state.x, sp.state.z);

@@ -55,14 +55,14 @@ export const SPOOK = {
   chaseSpeed: 3.6,
   returnSpeed: 1.3,
   wanderRadius: 4,
-  /** Pause (turning towards the sound) before chasing. */
-  alertTime: 0.6,
+  /** Pause (turning towards the sound) before chasing: time to flee or reach a light. */
+  alertTime: 1.2,
   /** Give up a chase after this long. */
   chaseTimeout: 10,
   /** Linger at the heard position before returning. */
   lingerTime: 2.4,
   /** While chasing, a sock that is this close locks on to the chicken itself. */
-  huntRadius: 3.5,
+  huntRadius: 2.5,
   catchRadius: 0.6,
   /** Passive hearing of hop noise. */
   noticeRadius: 2,
