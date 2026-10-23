@@ -22,7 +22,7 @@ Legende: TODO · WIP · REVIEW · DONE · CUT · (Modell) · Owner-Dateien exklu
 - [ ] T12 (Opus, fresh) Playtest 2 mit Bugliste · [ ] G1 (Sonnet, fresh) Reviewer + spec-verifier gegen GDD
 
 ## P3 Deploy
-- [x] T13 DONE (Opus-Lead + Sonnet-Worker Punkte 6–7) Gate-1-Fixes, s. DONE · [ ] T14 (Sonnet) gh-pages Deploy, URL-Check, Docker-Beweis
+- [x] T13 DONE (Opus-Lead + Sonnet-Worker Punkte 6–7) Gate-1-Fixes, s. DONE · [x] T14 DONE: live https://alwa991.github.io/quietsch/, Pages built, Docker-Beweis ok
 
 ## P4 Stretch (nur nach G1, Reihenfolge fix)
 - [ ] T15 Geisterlichter · [ ] T16 Keller + Krone · [ ] T17 Türklingel + Herzschlag · [ ] T18 Hüte · [ ] T19 Köder · [ ] T20 Dachboden

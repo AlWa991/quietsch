@@ -1,5 +1,7 @@
 # QUIETSCH! – Raus aus dem dunklen Haus
 
+**Spielen: https://alwa991.github.io/quietsch/**
+
 Ein 3D-Browserspiel, entstanden im 24-Stunden-Contest. Halloween-Nacht, Sturm, ein stockdunkles Haus: Du bist das Quietschhähnchen, Lieblingsspielzeug von Hund Bello, und willst die Haustür öffnen und raus in die Nacht. Dein einziges Werkzeug ist dein Schrei: Er wirft einen Sonar-Ring, der die Umgebung aufleuchten lässt, aber auch alles Spukige auf dich aufmerksam macht. Je länger du schreist, desto mehr siehst du und desto größer ist das Risiko.
 
 Spielbar direkt im Browser, ohne Installation. Repository: https://github.com/AlWa991/quietsch

@@ -1,4 +1,5 @@
 # SESSION_STATE – QUIETSCH!
+**Live: https://alwa991.github.io/quietsch/** (T14 done via gh-pages, Pages built; T14a Review-Fixes in 04669e4)
 Stand: 2026-10-23 · Orchestrator: Fable (Phasen-Ebene) · Phase: P2 DONE + T13 Gate-1-Fixes DONE (uncommitted auf main) → nächster Schritt Gate 1 (T12 Playtest 2 + G1 Review), dann T14 Deploy
 
 ## Projekt
