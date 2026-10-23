@@ -8,6 +8,7 @@ import { buy, roomStars, toggleHat } from './core/economy';
 import { MISSION_IDS, MISSION_ROOM, type MissionId } from './core/missions';
 import { clearSave, loadGame } from './core/save';
 import { secretFound } from './core/keller';
+import { peacefulCount } from './core/noise';
 import {
   canTransition,
   countLocks,
@@ -60,6 +61,18 @@ export interface GameActions {
   openShop(): void;
   gotoFinale(): void;
   chooseEnding(choice: EndingId): void;
+  /** Snapshot of every spook (e2e / playtests). */
+  spooks(): SpookInfo[];
+}
+
+export interface SpookInfo {
+  kind: string;
+  mode: string;
+  x: number;
+  z: number;
+  targetX: number;
+  targetZ: number;
+  peaceful: boolean;
 }
 
 declare global {
@@ -267,7 +280,10 @@ function boot(root: HTMLElement): void {
         }
       };
     },
-    onDelivered() {
+    onDelivered(s) {
+      // Map spawns have stable indices: remember them so a reload keeps them in the Korb.
+      const index = spooks.list.indexOf(s);
+      if (index >= 0 && index < baseSpooks) store.get().flags[`peace:${index}`] = true;
       store.set({ ghostlights: store.get().ghostlights + 1 });
       store.emit({ type: 'ghostlight', amount: 1 });
       sfx.combo(4);
@@ -280,6 +296,8 @@ function boot(root: HTMLElement): void {
     spooks.spawn(room === 'kueche' ? 'rudi' : 'socke', c.x + 0.5, c.y + 0.5);
   }
   for (const p of SOFA_SPOTS) spooks.spawn('hand', p.x, p.z + 0.7);
+  /** Spooks from the map (wrong-box socks spawn later and are not persisted). */
+  const baseSpooks = spooks.list.length;
 
   // --- Sonar / lightning / missions ---------------------------------------------------
   const floorMask = { texture: house.floorMask, width: map.width, height: map.height };
@@ -304,10 +322,18 @@ function boot(root: HTMLElement): void {
       const s = spooks.byReveal(r);
       if (!s || !missionsRef) return;
       const t = ctx.clock.elapsedTime;
-      const lit =
-        !echo &&
-        missionsRef.lit(s.state.x, s.state.z, t, chicken.pos.x, chicken.pos.z, chicken.facing);
-      if (spooks.heard(s, ox, oz, lit)) ui.toast(T.peaceful, T.peacefulSub);
+      const lights = missionsRef.lights(
+        s.state.x,
+        s.state.z,
+        t,
+        chicken.pos.x,
+        chicken.pos.z,
+        chicken.facing,
+      );
+      if (spooks.heard(s, ox, oz, echo ? 'echo' : 'scream', lights)) {
+        ui.toast(T.peaceful, T.peacefulSub);
+        sfx.peaceful();
+      }
     },
     onPropHit(r, echo) {
       missionsRef?.onPropHit(r, echo, ctx.clock.elapsedTime);
@@ -408,6 +434,7 @@ function boot(root: HTMLElement): void {
         rank: rankName(store.get().rank),
         time: formatTime(s.time),
         secret: secretFound(s.flags),
+        peaceful: peacefulCount(spooks.list.map((x) => x.state)),
       },
       () => {
         try {
@@ -529,6 +556,9 @@ function boot(root: HTMLElement): void {
       store.set(saved);
       applyRevealed();
       missions.restore();
+      spooks.list.forEach((sp, i) => {
+        if (i < baseSpooks && saved?.flags[`peace:${i}`]) spooks.restAtKorb(sp, korb.x, korb.z);
+      });
       applyLoadout();
       setPhase('play');
       ui.toast(rankName(saved.rank), `Schloss ${countLocks(saved)} von 3 offen`);
@@ -694,6 +724,16 @@ function boot(root: HTMLElement): void {
       if (phase === 'title') setPhase('play');
       void startFinale();
     },
+    spooks: () =>
+      spooks.list.map(({ state: s }) => ({
+        kind: s.kind,
+        mode: s.mode,
+        x: s.x,
+        z: s.z,
+        targetX: s.targetX,
+        targetZ: s.targetZ,
+        peaceful: s.peaceful,
+      })),
     chooseEnding: (id) => {
       if (phase !== 'finale' && phase !== 'choice') return;
       forcedEnding = id;

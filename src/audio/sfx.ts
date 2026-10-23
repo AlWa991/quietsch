@@ -270,6 +270,15 @@ export const sfx = {
     tone(bus, { type: 'sawtooth', f0: 90, f1: 45, dur: 0.5, gain: 0.3 });
   },
 
+  /** Warm rising chime: a spook turns peaceful. */
+  peaceful(): void {
+    const bus = getBus();
+    if (!bus) return;
+    [523, 659, 784].forEach((f, i) =>
+      tone(bus, { type: 'sine', f0: f, f1: f * 1.01, start: i * 0.09, dur: 0.5, gain: 0.18 }),
+    );
+  },
+
   /** Hollow double knock: the wall answers the scream (Keller secret). */
   knock(): void {
     const bus = getBus();

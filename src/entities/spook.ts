@@ -127,7 +127,7 @@ function createSocke(x: number, z: number, reveal: RevealSystem): Spook {
 
       self.dist = Math.hypot(cx - state.x, cz - state.z);
       // Visible only when revealed or inside the chicken's glow; peaceful ones always faintly.
-      const peaceful = state.mode === 'follow' || state.mode === 'rest';
+      const peaceful = state.peaceful;
       const glow = Math.min(1, Math.max(0, (3 - self.dist) / 1.6));
       const v = Math.max(reveal.visibility(rev), glow, peaceful ? 0.75 : 0);
       bodyMat.emissive.copy(peaceful ? PEACE_TINT : SOCK_EMISSIVE);
@@ -186,6 +186,7 @@ function createRudi(x: number, z: number, reveal: RevealSystem): Spook {
   object.add(light);
   object.position.set(x, 0, z);
   const rev = reveal.add(object, 'spook', 'rudi');
+  let wasPeaceful = false;
 
   const self: Spook = {
     state,
@@ -201,7 +202,20 @@ function createRudi(x: number, z: number, reveal: RevealSystem): Spook {
       reveal.setBounds(rev, state.x, state.z, 0.4);
       self.dist = Math.hypot(cx - state.x, cz - state.z);
       eye.visible = awake;
-      light.intensity = !awake ? 0 : state.mode === 'chase' ? 4 + Math.sin(time * 20) : 1.2;
+      if (state.peaceful !== wasPeaceful) {
+        // Peaceful Rudi: warm lamp instead of the red eye, shell glows amber.
+        wasPeaceful = state.peaceful;
+        light.color.setHex(wasPeaceful ? 0xffb060 : 0xff2030);
+        eyeMat.color.setHex(wasPeaceful ? 0xffd090 : 0xff2030);
+        shell.emissive.setHex(wasPeaceful ? 0x8a4a10 : 0x2a0508);
+      }
+      light.intensity = !awake
+        ? 0
+        : state.peaceful
+          ? 2.2 + Math.sin(time * 2.5) * 0.4
+          : state.mode === 'chase'
+            ? 4 + Math.sin(time * 20)
+            : 1.2;
       object.visible = true;
     },
   };
@@ -243,6 +257,7 @@ function createHand(x: number, z: number, reveal: RevealSystem): Spook {
   object.position.set(x, 0, z);
   const rev = reveal.add(object, 'spook', 'hand');
   let rise = 0;
+  let wasPeaceful = false;
 
   const self: Spook = {
     state,
@@ -254,12 +269,19 @@ function createHand(x: number, z: number, reveal: RevealSystem): Spook {
       const want = m === 'alert' ? 0.75 : m === 'chase' ? 1 : 0;
       const speed = m === 'alert' || m === 'chase' ? 9 : 2.5;
       rise += (want - rise) * (1 - Math.exp(-speed * dt));
-      const peaceful = m === 'follow' || m === 'rest';
-      if (peaceful) rise = 0.8;
+      const peaceful = state.peaceful;
+      if (peaceful) rise = 1;
+      if (peaceful !== wasPeaceful) {
+        // Peaceful hand: warm skin glow, fully out of the floor, waddling after the chicken.
+        wasPeaceful = peaceful;
+        skin.emissive.setHex(peaceful ? 0xc07a30 : 0x506a58);
+        skin.emissiveIntensity = peaceful ? 0.9 : 0.7;
+      }
       object.position.set(state.x, -1.25 + rise * 1.25, state.z);
       object.rotation.y = state.heading;
       // Lunge towards the chicken while grabbing, tremble while emerging.
       arm.rotation.x = m === 'chase' ? 0.7 : m === 'alert' ? Math.sin(time * 40) * 0.08 : 0;
+      arm.rotation.z = peaceful && m === 'follow' ? Math.sin(time * 7) * 0.18 : 0;
       reveal.setBounds(rev, state.x, state.z, 0.4);
       self.dist = Math.hypot(cx - state.x, cz - state.z);
       object.visible = rise > 0.05;

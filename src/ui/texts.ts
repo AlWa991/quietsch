@@ -186,6 +186,7 @@ export const RESULTS = {
   heading: 'Nacht vorbei',
   feathers: 'Federn',
   ghostlights: 'Geisterlichter',
+  peaceful: 'Befriedete Spuks',
   stars: 'Sterne',
   rank: 'Rang',
   time: 'Zeit',

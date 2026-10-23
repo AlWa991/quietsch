@@ -57,6 +57,8 @@ export interface ResultStats {
   time: string;
   /** Keller secret found (Spendenkarton opened). */
   secret: boolean;
+  /** Peaceful spooks n of m. */
+  peaceful: { n: number; m: number };
 }
 
 /** Ending text + mobile-game style results screen. */
@@ -76,6 +78,7 @@ export function showEnding(
   const rows: [string, string][] = [
     [RESULTS.feathers, String(stats.feathers)],
     [RESULTS.ghostlights, String(stats.ghostlights)],
+    [RESULTS.peaceful, `${stats.peaceful.n}/${stats.peaceful.m}`],
     [
       RESULTS.stars,
       `${'★'.repeat(stats.stars)}${'☆'.repeat(Math.max(0, stats.maxStars - stats.stars))}  ${stats.stars}/${stats.maxStars}`,

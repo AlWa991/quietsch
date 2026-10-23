@@ -149,6 +149,8 @@ test('playthrough: shop, three missions, finale, ending A', async ({ page }) => 
   await page.locator('[data-testid="choice-A"]').click();
   await page.locator('.q-ending[data-ending="A"]').waitFor({ state: 'visible', ...WAIT });
   await expect(page.locator('.q-ending')).toContainText('Federn');
+  await expect(page.locator('.q-ending')).toContainText('Befriedete Spuks');
+  await expect(page.locator('.q-ending')).toContainText('Geheimnis gefunden');
   await page.waitForTimeout(1500);
   await page.screenshot({ path: `${SHOT}/ending-a.png` });
 
@@ -249,5 +251,31 @@ test('keller: hollow wall, stairs, twist 2 and Krone', async ({ page }) => {
   expect(await page.locator('.q-story').isVisible()).toBe(false);
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${SHOT}/keller.png` });
+  expect(errors).toEqual([]);
+});
+
+test('geisterlichter: a scream in lightning pacifies a sofa hand', async ({ page }) => {
+  const errors = collectErrors(page);
+  await boot(page);
+  await startPlay(page);
+  await page.evaluate(() => window.__game?.actions?.warp(19.5, 9.6));
+  await page.waitForTimeout(500);
+  await closeCards(page);
+  await page.evaluate(() => window.__game?.actions?.lightning());
+  await page.waitForTimeout(150);
+  await page.evaluate(() => window.__game?.actions?.scream(0.1));
+  await page.waitForFunction(
+    () => window.__game?.actions?.spooks().some((s) => s.kind === 'hand' && s.peaceful) === true,
+    undefined,
+    WAIT,
+  );
+  await expect(page.locator('.q-toasts')).toContainText('Friedlich');
+  // It follows the chicken to the Korb and pays a Geisterlicht.
+  await page.evaluate(() => window.__game?.actions?.teleport('flur'));
+  await page.waitForTimeout(300);
+  await page.evaluate(() => window.__game?.actions?.warp(23.5, 27.4));
+  await page.waitForFunction(() => (window.__game?.state.ghostlights ?? 0) >= 1, undefined, WAIT);
+  await page.waitForTimeout(800);
+  await page.screenshot({ path: `${SHOT}/peaceful.png` });
   expect(errors).toEqual([]);
 });

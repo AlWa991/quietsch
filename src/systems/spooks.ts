@@ -1,5 +1,6 @@
 import type * as THREE from 'three';
 import { hearSound, pacify, settle, SPOOK, stepSpook, type SpookInput } from '@/core/spook-fsm';
+import { noiseReaction, type NoiseSource } from '@/core/noise';
 import type { SpookKind } from '@/core/types';
 import { createSpookEntity, type Spook } from '@/entities/spook';
 import type { RevealSystem, Revealable } from '@/render/reveal';
@@ -33,10 +34,15 @@ export interface SpookManager {
   readonly chasing: boolean;
   spawn(kind: SpookKind, x: number, z: number): Spook;
   byReveal(r: Revealable): Spook | undefined;
-  /** Ring passed a spook: lit spooks become peaceful, others hear it. Returns true if pacified. */
-  heard(s: Spook, ox: number, oz: number, lit: boolean): boolean;
-  /** Finale: every spook settles in an arc behind (x, z), up-screen. */
+  /**
+   * A noise reached a spook. A scream at a spook standing in a light it fears (`lights` mask,
+   * see core/noise) makes it peaceful; otherwise it hears the origin. Returns true if pacified.
+   */
+  heard(s: Spook, ox: number, oz: number, source: NoiseSource, lights: number): boolean;
+  /** Finale: peaceful spooks settle close behind (x, z), the others in rows further back. */
   gather(x: number, z: number): void;
+  /** Reload: a spook delivered in a saved run rests peacefully at the Korb again. */
+  restAtKorb(s: Spook, korbX: number, korbZ: number): void;
   update(f: SpookFrame): void;
 }
 
@@ -106,23 +112,30 @@ export function createSpookManager(
       for (const s of list) if (s.reveal === rv) return s;
       return undefined;
     },
-    heard(s, ox, oz, lit) {
+    heard(s, ox, oz, source, lights) {
       const st = s.state;
-      if (st.mode === 'follow' || st.mode === 'rest') return false;
-      if (lit && st.kind === 'socke') {
+      const reaction = noiseReaction(st.kind, st.mode, source, lights);
+      if (reaction === 'pacify') {
         pacify(st);
         return true;
       }
-      hearSound(st, ox, oz);
+      if (reaction === 'hear') hearSound(st, ox, oz);
       return false;
     },
     gather(x, z) {
-      let i = 0;
-      for (const s of list) {
-        const row = Math.floor(i / 5);
-        const col = (i % 5) - 2;
+      // Peaceful ones first: they take the front arc, right behind the chicken.
+      const order = list
+        .slice()
+        .sort((a, b) => Number(b.state.peaceful) - Number(a.state.peaceful));
+      const front = order.filter((s) => s.state.peaceful).length;
+      order.forEach((s, i) => {
+        const peaceful = i < front;
+        const k = peaceful ? i : i - front;
+        const row = Math.floor(k / 5);
+        const col = (k % 5) - 2;
         const st = s.state;
-        settle(st, x + col * 0.9, z - 1.4 - row * 0.9 - Math.abs(col) * 0.2);
+        const dist = peaceful ? 1.1 + row * 0.7 : 1.4 + Math.ceil(front / 5) * 0.7 + row * 0.9;
+        settle(st, x + col * (peaceful ? 0.75 : 0.9), z - dist - Math.abs(col) * 0.15);
         // They drift in from the dark behind the chicken (rest mode walks home at returnSpeed,
         // so ~3.6 m back takes ~3 s); closer if a wall is in the way.
         st.x = st.homeX + col * 0.5;
@@ -130,8 +143,15 @@ export function createSpookManager(
           st.z = st.homeZ - back;
           if (wallFree(st.x, st.z)) break;
         }
-        i++;
-      }
+      });
+    },
+    restAtKorb(s, korbX, korbZ) {
+      const slot = KORB_SLOTS[delivered % KORB_SLOTS.length] ?? [0, 0];
+      delivered++;
+      pacify(s.state);
+      settle(s.state, korbX + slot[0], korbZ + slot[1]);
+      s.state.x = s.state.homeX;
+      s.state.z = s.state.homeZ;
     },
     update(f) {
       input.dt = f.dt;
@@ -145,7 +165,9 @@ export function createSpookManager(
       for (const s of list) {
         const st = s.state;
         if (f.active) {
-          input.canMove = st.kind === 'rudi' && st.mode !== 'rest' ? kitchenFree : wallFree;
+          // Rudi's cable only holds him while he is hostile; peaceful Rudi rolls along freely.
+          input.canMove =
+            st.kind === 'rudi' && !st.peaceful && st.mode !== 'rest' ? kitchenFree : wallFree;
           if (stepSpook(st, input) === 'caught') hooks.onCaught(s);
           if (
             st.mode === 'follow' &&

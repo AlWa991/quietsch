@@ -27,6 +27,8 @@ export interface SpookState {
   noiseAge: number;
   /** Hand: the current emerge is the scripted scare and cannot catch. */
   scare: boolean;
+  /** Pacified by a scream in light; stays true through settle (finale, Korb). */
+  peaceful: boolean;
 }
 
 export interface SpookInput {
@@ -109,6 +111,7 @@ export function createSpook(x: number, z: number, kind: SpookKind = 'socke'): Sp
     cooldown: 0,
     noiseAge: Infinity,
     scare: false,
+    peaceful: false,
   };
 }
 
@@ -197,6 +200,7 @@ export function popHand(s: SpookState): void {
 export function pacify(s: SpookState): void {
   s.mode = 'follow';
   s.scare = false;
+  s.peaceful = true;
 }
 
 /** Peaceful spook settles at (x, z) and idles there. */

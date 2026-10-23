@@ -28,6 +28,7 @@ import {
 } from '@/core/keller';
 import { countLocks, lockText, openLock, type CardId } from '@/core/story';
 import { popHand, wakeRudi } from '@/core/spook-fsm';
+import { LIGHT } from '@/core/noise';
 import { createInteractable, INTERACT_RADIUS, type Interactable } from '@/entities/interactable';
 import type { RevealSystem, Revealable } from '@/render/reveal';
 import type { Store } from '@/ui/store';
@@ -92,8 +93,8 @@ export interface Missions {
   /** Chicken screamed (any length). */
   onScream(time: number, roomId: string | null): void;
   onFlash(time: number, roomId: string | null): void;
-  /** Is the point lit (night light, fridge, lightning, flashlight)? */
-  lit(x: number, z: number, time: number, cx: number, cz: number, facing: number): boolean;
+  /** Lights shining on a point as a core/noise LIGHT mask (0 = dark). */
+  lights(x: number, z: number, time: number, cx: number, cz: number, facing: number): number;
   /** Mission objective for the room the chicken is in, written into `out`; false = none. */
   objective(roomId: string | null, out: Objective): boolean;
   complete(id: MissionId, debug: boolean): void;
@@ -252,7 +253,7 @@ export function createMissions(d: MissionDeps): Missions {
             ui.toast(T.wrongBox, T.wrongBoxSub(lost));
             // A Socken-Geist crawls out and goes for the noise.
             const sock = d.spooks.spawn('socke', it.x + 0.9, it.z + 0.9);
-            d.spooks.heard(sock, it.x, it.z, false);
+            d.spooks.heard(sock, it.x, it.z, 'echo', 0);
             d.shake(0.15, 0.2);
           } else {
             ui.toast(T.boxEmpty);
@@ -414,21 +415,24 @@ export function createMissions(d: MissionDeps): Missions {
         clockCount();
       }
     },
-    lit(x, z, time, cx, cz, facing) {
-      if (time - lastFlash <= FLASH_LIT) return true;
+    lights(x, z, time, cx, cz, facing) {
+      let mask = 0;
+      if (time - lastFlash <= FLASH_LIT) mask |= LIGHT.lightning;
       if (
         d.nightLight &&
         Math.hypot(x - d.nightLight.x, z - d.nightLight.z) <= NIGHT_LIGHT_RADIUS
       ) {
-        return true;
+        mask |= LIGHT.night;
       }
+      // The fridge counts once the power is on (also during the flicker).
       if (
-        fridge.intensity > 0 &&
+        m().jaeger.power &&
         Math.hypot(x - d.fridgeLight.x, z - d.fridgeLight.z) <= FRIDGE_RADIUS
       ) {
-        return true;
+        mask |= LIGHT.fridge;
       }
-      return d.flashlight.lights(x, z, cx, cz, facing);
+      if (d.flashlight.lights(x, z, cx, cz, facing)) mask |= LIGHT.torch;
+      return mask;
     },
     objective(roomId, out) {
       for (const id of MISSION_IDS) {
