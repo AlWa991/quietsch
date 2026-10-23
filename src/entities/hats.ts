@@ -40,15 +40,28 @@ export function createHat(id: string): THREE.Group | null {
       break;
     }
     case 'krone': {
-      const gold = flat(0xffc83a, 0xffa000, 0.6);
-      const ring = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.06, 10, 1, true), gold);
+      // Darker, orange-brown gold with a dark rim and red gems: reads on the yellow chicken.
+      const gold = flat(0xc8901c, 0x5a3200, 0.35);
+      const rim = new THREE.MeshBasicMaterial({ color: 0x2a1404, side: THREE.BackSide });
+      const gem = flat(0xe0142e, 0xa0001a, 0.8);
+      const ringGeo = new THREE.CylinderGeometry(0.1, 0.1, 0.06, 10, 1, true);
+      const ring = new THREE.Mesh(ringGeo, gold);
       ring.position.y = 0.03;
-      g.add(ring);
+      const outline = new THREE.Mesh(ringGeo, rim);
+      outline.position.y = 0.03;
+      outline.scale.set(1.14, 1.25, 1.14);
+      g.add(ring, outline);
+      const gemGeo = new THREE.SphereGeometry(0.018, 6, 4);
       for (let i = 0; i < 5; i++) {
         const a = (i / 5) * Math.PI * 2;
         const spike = new THREE.Mesh(new THREE.ConeGeometry(0.025, 0.07, 4), gold);
         spike.position.set(Math.cos(a) * 0.09, 0.09, Math.sin(a) * 0.09);
-        g.add(spike);
+        const tip = new THREE.Mesh(gemGeo, gem);
+        tip.position.set(Math.cos(a) * 0.09, 0.13, Math.sin(a) * 0.09);
+        const b = a + Math.PI / 5;
+        const stone = new THREE.Mesh(gemGeo, gem);
+        stone.position.set(Math.cos(b) * 0.102, 0.03, Math.sin(b) * 0.102);
+        g.add(spike, tip, stone);
       }
       break;
     }

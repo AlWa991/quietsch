@@ -101,6 +101,8 @@ export const FOLLOW = {
   speed: 2.8,
   /** Peaceful spooks keep this distance behind the chicken. */
   distance: 1.3,
+  /** Followers this far behind (teleport, stuck at a wall) snap back behind the chicken. */
+  snap: 6,
 } as const;
 
 export function createSpook(x: number, z: number, kind: SpookKind = 'socke'): SpookState {

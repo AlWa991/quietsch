@@ -146,3 +146,6 @@ Stand: 2026-10-23 · Quelle: Projektplan (Abschnitt 2), ergänzt um Steuerung un
 - **Sturm:** Im Wohnzimmer blitzt es alle 8–12 s, solange die Uhr-Mission offen ist (sonst 15–25 s).
 - **Titel-Logo:** Inter mit Kontur statt Pixelify (das Pixelify-C las sich als O).
 - **Enden mit Bild:** Hinter dem Ergebnis-Panel (rechts, ~70 % deckend) läuft die 3D-Szene weiter. Ende A: Hähnchen in der offenen Haustür, kaltes Sturmlicht, Blitze alle 3–4 s, die Spuks dahinter. Ende B: alle Spuks leuchten warm und kuscheln sich um den Korb. Die Statistik bleibt unverändert.
+- **Keller-Geheimnis:** Bis die hohle Wand aufgedrückt ist, ist der Keller unsichtbar (schwarze Abdeckung, Möbel/Truhe/Karton/Socke ausgeblendet) und weder per Schrei noch per Blitz enthüllbar; keine Federn durch die Wand.
+- **Krone:** dunkleres Gold mit dunklem Rand und roten Steinen (Kontrast zum gelben Hähnchen).
+- **Befriedete Spuks:** fallen sie mehr als 6 m zurück (Leiter, Panik, Wand), tauchen sie direkt hinter dem Hähnchen wieder auf.

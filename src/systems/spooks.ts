@@ -1,5 +1,13 @@
 import type * as THREE from 'three';
-import { hearSound, pacify, settle, SPOOK, stepSpook, type SpookInput } from '@/core/spook-fsm';
+import {
+  FOLLOW,
+  hearSound,
+  pacify,
+  settle,
+  SPOOK,
+  stepSpook,
+  type SpookInput,
+} from '@/core/spook-fsm';
 import { noiseReaction, type NoiseSource } from '@/core/noise';
 import type { SpookKind } from '@/core/types';
 import { createSpookEntity, type Spook } from '@/entities/spook';
@@ -173,6 +181,19 @@ export function createSpookManager(
           input.canMove =
             st.kind === 'rudi' && !st.peaceful && st.mode !== 'rest' ? kitchenFree : wallFree;
           if (stepSpook(st, input) === 'caught') hooks.onCaught(s);
+          if (st.mode === 'follow') {
+            const dx = st.x - f.chickenX;
+            const dz = st.z - f.chickenZ;
+            const d = Math.hypot(dx, dz);
+            if (d > FOLLOW.snap) {
+              // Left behind (ladder, panic, wall): pop back in right behind the chicken.
+              const k = FOLLOW.distance / d;
+              const nx = f.chickenX + dx * k;
+              const nz = f.chickenZ + dz * k;
+              st.x = wallFree(nx, nz) ? nx : f.chickenX;
+              st.z = wallFree(nx, nz) ? nz : f.chickenZ;
+            }
+          }
           if (
             st.mode === 'follow' &&
             Math.hypot(f.chickenX - f.korbX, f.chickenZ - f.korbZ) < 1.8 &&

@@ -39,6 +39,7 @@ import {
   HOUSE_ASCII,
   HOUSE_ROOMS,
   LADDER_ARRIVAL,
+  HOLLOW_CELL,
   roomIdAt,
   SOFA_SPOTS,
 } from './world/house-map';
@@ -388,6 +389,32 @@ function boot(root: HTMLElement): void {
     flash: (v) => postfx.setFlash(v),
   });
 
+  // --- Keller: invisible and silent until the hollow wall opens ------------------------
+  const inKeller = (x: number, z: number): boolean => x > 16.5 && x < 25.5 && z > 31.9;
+  let kellerOpen = false;
+  /** Covers the low Keller walls (part of the merged wall mesh) in the void colour. */
+  const kellerCap = new THREE.Mesh(
+    new THREE.PlaneGeometry(9, 6.5),
+    new THREE.MeshBasicMaterial({ color: 0x03050b }),
+  );
+  kellerCap.rotation.x = -Math.PI / 2;
+  kellerCap.position.set(21, 0.37, 35.25);
+  ctx.scene.add(kellerCap);
+  const kellerProps: THREE.Object3D[] = [];
+  /** Apply the Keller visibility to everything known so far (house, interactables, props). */
+  const syncKeller = (): void => {
+    kellerCap.visible = !kellerOpen;
+    for (const r of reveal.items) if (inKeller(r.center.x, r.center.z)) r.muted = !kellerOpen;
+    for (const o of house.group.children) {
+      if (o instanceof THREE.Mesh && inKeller(o.position.x, o.position.z)) o.visible = kellerOpen;
+    }
+    for (const it of missionsRef?.interactables ?? []) {
+      if (it.def.room === 'keller') it.object.visible = kellerOpen;
+    }
+    for (const o of kellerProps) o.visible = kellerOpen;
+    if (kellerOpen) for (const sp of spooks.list) sp.reveal.muted = false;
+  };
+
   const missions = createMissions({
     scene: ctx.scene,
     reveal,
@@ -410,6 +437,10 @@ function boot(root: HTMLElement): void {
       wallsOnly.blocked[i] = 0;
       house.mask[i] = 255;
       house.floorMask.needsUpdate = true;
+      if (cx === HOLLOW_CELL.x && cy === HOLLOW_CELL.y) {
+        kellerOpen = true;
+        syncKeller();
+      }
     },
     onLoadout: () => applyLoadout(),
     climb(to) {
@@ -424,6 +455,7 @@ function boot(root: HTMLElement): void {
     onCollar: putOnCollar,
   });
   missionsRef = missions;
+  syncKeller();
 
   // --- Finale + endings ---------------------------------------------------------------
   let choice: Choice | null = null;
@@ -620,7 +652,13 @@ function boot(root: HTMLElement): void {
     for (const r of reveal.items) if (done.has(r.id)) r.rewarded = true;
   };
   placeProps(map, house, reveal)
-    .then(applyRevealed)
+    .then((placed) => {
+      for (const p of placed) {
+        if (inKeller(p.object.position.x, p.object.position.z)) kellerProps.push(p.object);
+      }
+      syncKeller();
+      applyRevealed();
+    })
     .catch((err: unknown) => {
       console.warn('[QUIETSCH] props failed to load', err);
     });
@@ -731,6 +769,13 @@ function boot(root: HTMLElement): void {
     frame.active =
       dt > 0 && (active || phase === 'finale' || phase === 'choice' || phase === 'ending');
     spooks.update(frame);
+    if (!kellerOpen) {
+      for (const sp of spooks.list) {
+        const hide = inKeller(sp.state.x, sp.state.z);
+        sp.reveal.muted = hide;
+        if (hide) sp.object.visible = false;
+      }
+    }
     const danger = active
       ? Math.min(1, Math.max(0, (8 - spooks.nearest) / 6.5) + (spooks.chasing ? 0.25 : 0))
       : 0;

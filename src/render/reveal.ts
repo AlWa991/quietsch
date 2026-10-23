@@ -24,6 +24,8 @@ export interface Revealable {
   baseColor: THREE.Color;
   /** World position for floating numbers etc. */
   center: THREE.Vector3;
+  /** Hidden area (closed Keller): never revealed, never heard by the sonar. */
+  muted: boolean;
 }
 
 interface KindStyle {
@@ -122,6 +124,7 @@ export class RevealSystem {
       residual: style.residual,
       baseColor: new THREE.Color(style.color),
       center: box.getCenter(new THREE.Vector3()),
+      muted: false,
     };
     this.items.push(r);
     return r;
@@ -137,6 +140,7 @@ export class RevealSystem {
   }
 
   hit(r: Revealable, strength = 1): void {
+    if (r.muted) return;
     r.level = Math.max(r.level, strength);
     r.boost = Math.max(r.boost, strength);
     r.seen = true;

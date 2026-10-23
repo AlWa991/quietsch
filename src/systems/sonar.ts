@@ -220,6 +220,7 @@ export function createSonarSystem(
 
         for (const r of reveal.items) {
           const d = distToRect(ring.x, ring.z, r.minX, r.minZ, r.maxX, r.maxZ);
+          if (r.muted) continue;
           if (!crossed(d, ring.prevFront, front) && !(ring.prevFront === 0 && d === 0)) continue;
           reveal.hit(r);
           if (r.kind === 'spook') hooks.onSpookHeard(r, ring.x, ring.z, ring.source);
