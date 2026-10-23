@@ -1,0 +1,12 @@
+node_modules
+dist
+test-results
+playwright-report
+e2e/screenshots
+.git
+.claude
+*.pem
+*.key
+.env
+.env.*
+!.env.example

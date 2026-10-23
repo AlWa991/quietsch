@@ -1,8 +1,9 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { GridCell, type HouseMap, type RoomDef } from '@/core/types';
+import { GridCell, type HouseMap } from '@/core/types';
 import type { RevealSystem } from '@/render/reveal';
 import { PROP_INFO, loadProp, type PropKey } from './assets';
+import { SOFA_SPOTS } from './house-map';
 
 export interface WallBox {
   x: number;
@@ -235,16 +236,6 @@ function buildKorb(x: number, z: number): THREE.Group {
   return g;
 }
 
-function roomOf(map: HouseMap, x: number, y: number): RoomDef | undefined {
-  return map.rooms.find(
-    (r) =>
-      x >= r.bounds.x &&
-      x < r.bounds.x + r.bounds.w &&
-      y >= r.bounds.y &&
-      y < r.bounds.y + r.bounds.h,
-  );
-}
-
 /** Build walls, floors, Korb and windows. Registers revealables. 1 cell = 1 m, y is up. */
 export function buildHouse(map: HouseMap, reveal: RevealSystem): HouseBuild {
   const group = new THREE.Group();
@@ -370,35 +361,33 @@ interface Placement {
   rot: number;
 }
 
-/** Hand-placed furniture (cell-centre coords). 'T' cells get a room-matched prop on top. */
+/** Hand-placed furniture (cell-centre coords). 'T' cells are interactables (entities/interactable). */
 const FURNITURE: Placement[] = [
   // Kinderzimmer
   { key: 'bed', x: 2.5, z: 13.6, rot: Math.PI / 2 },
   { key: 'rug', x: 8, z: 23.5, rot: 0 },
   { key: 'cushion', x: 13.5, z: 29.3, rot: 0.4 },
-  { key: 'box', x: 14.5, z: 22.5, rot: 0.2 },
+  { key: 'toyBear', x: 7.5, z: 13, rot: 0.3 },
   // Flur
   { key: 'plant', x: 29.5, z: 29.4, rot: 0 },
   { key: 'rug', x: 24, z: 20, rot: Math.PI / 2 },
+  { key: 'coatRack', x: 28.5, z: 16.5, rot: 0 },
   // Küche
   { key: 'fridge', x: 46.3, z: 13, rot: -Math.PI / 2 },
   { key: 'kitchenCabinet', x: 38, z: 12.6, rot: 0 },
   { key: 'kitchenCabinet', x: 40, z: 12.6, rot: 0 },
+  { key: 'table', x: 41.5, z: 19.5, rot: 0 },
   { key: 'chair', x: 42.7, z: 19.5, rot: -Math.PI / 2 },
   { key: 'chair', x: 39.3, z: 19.5, rot: Math.PI / 2 },
   // Wohnzimmer
   { key: 'bookcase', x: 9.5, z: 1.5, rot: 0 },
-  { key: 'tvCabinet', x: 27.5, z: 1.5, rot: 0 },
+  { key: 'tvCabinet', x: 29.5, z: 1.5, rot: 0 },
   { key: 'rug', x: 27.5, z: 4.5, rot: 0 },
   { key: 'plant', x: 38.6, z: 9.6, rot: 0 },
+  { key: 'floorLamp', x: 37.5, z: 2.5, rot: 0 },
+  { key: 'radio', x: 10.5, z: 8.5, rot: 0 },
+  ...SOFA_SPOTS.map((p) => ({ key: 'sofa' as const, x: p.x, z: p.z, rot: Math.PI })),
 ];
-
-const T_CELL_PROPS: Record<string, PropKey[]> = {
-  kinderzimmer: ['box', 'toyBear', 'box'],
-  flur: ['coatRack'],
-  kueche: ['table', 'chair'],
-  wohnzimmer: ['floorLamp', 'sofa', 'radio'],
-};
 
 /** Flat props the chicken may walk over. */
 const WALKABLE: ReadonlySet<PropKey> = new Set<PropKey>(['rug', 'cushion']);
@@ -415,19 +404,7 @@ export async function placeProps(
   build: HouseBuild,
   reveal: RevealSystem,
 ): Promise<PlacedProp[]> {
-  const placements: Placement[] = [...FURNITURE];
-  const used: Record<string, number> = {};
-  map.cells.forEach((row, y) =>
-    row.forEach((c, x) => {
-      if (c !== GridCell.Interactable) return;
-      const room = roomOf(map, x, y);
-      const list = T_CELL_PROPS[room?.id ?? ''] ?? ['radio'];
-      const i = used[room?.id ?? ''] ?? 0;
-      used[room?.id ?? ''] = i + 1;
-      const key = list[i % list.length] ?? 'radio';
-      placements.push({ key, x: x + 0.5, z: y + 0.5, rot: key === 'sofa' ? Math.PI : 0 });
-    }),
-  );
+  const placements: Placement[] = FURNITURE;
 
   const loaded = await Promise.all(placements.map((p) => loadProp(p.key)));
   const out: PlacedProp[] = [];

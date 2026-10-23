@@ -1,5 +1,8 @@
 // Shared types for all feature modules. Keep this file framework-free (no three import).
 
+import type { RoomRecord } from './economy';
+import type { MissionsState } from './missions';
+
 export interface Vec2 {
   x: number;
   y: number;
@@ -71,6 +74,15 @@ export interface GameState {
   /** Upgrade id -> level. */
   upgrades: Record<string, number>;
   hats: string[];
+  /** Worn hat id or null. */
+  hat: string | null;
   locksOpened: number;
   flags: Record<string, boolean>;
+  /** Total feathers ever earned (results screen). */
+  feathersEarned: number;
+  /** Play time in seconds (title and modals excluded). */
+  time: number;
+  /** Per-room records for stars, keyed by room id. */
+  rooms: Record<string, RoomRecord>;
+  missions: MissionsState;
 }

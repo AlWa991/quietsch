@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { SPOOK, createSpook, hearSound, stepSpook, type SpookInput } from '@/core/spook-fsm';
+import {
+  HAND,
+  RUDI,
+  SPOOK,
+  createSpook,
+  hearSound,
+  pacify,
+  popHand,
+  stepSpook,
+  wakeRudi,
+  type SpookInput,
+} from '@/core/spook-fsm';
 
 function input(over: Partial<SpookInput> = {}): SpookInput {
   let seed = 1;
@@ -90,5 +101,66 @@ describe('spook fsm', () => {
     const wall = input({ canMove: (x) => x < 12 });
     run(s, wall, 5);
     expect(s.x).toBeLessThan(12);
+  });
+});
+
+describe('spook kinds rudi / hand / peaceful', () => {
+  it('rudi starts dormant, ignores sound, wakes into parked wander', () => {
+    const s = createSpook(10, 10, 'rudi');
+    expect(s.mode).toBe('dormant');
+    hearSound(s, 12, 10);
+    expect(s.mode).toBe('dormant');
+    wakeRudi(s);
+    expect(s.mode).toBe('wander');
+  });
+
+  it('rudi moves only while the last noise is fresh', () => {
+    const s = createSpook(10, 10, 'rudi');
+    wakeRudi(s);
+    hearSound(s, 30, 10);
+    expect(s.mode).toBe('chase');
+    run(s, input(), 0.5);
+    const moved = s.x;
+    expect(moved).toBeGreaterThan(10);
+    run(s, input(), RUDI.noiseMemory + 0.2);
+    const parked = s.x;
+    run(s, input(), 1);
+    expect(s.x).toBe(parked);
+    expect(s.noiseAge).toBeGreaterThan(RUDI.noiseMemory);
+  });
+
+  it('hand grabs inside grabRadius after emergeTime', () => {
+    const s = createSpook(10, 10, 'hand');
+    const inp = input({ chickenX: 10 + HAND.grabRadius - 0.2, chickenZ: 10 });
+    const events = run(s, inp, HAND.emergeTime + 0.2);
+    expect(events).toEqual(['caught']);
+  });
+
+  it('hand does not grab from outside the radius', () => {
+    const s = createSpook(10, 10, 'hand');
+    const events = run(s, input({ chickenX: 10 + HAND.grabRadius + 1, chickenZ: 10 }), 3);
+    expect(events).toEqual([]);
+    expect(s.mode).toBe('wander');
+  });
+
+  it('popHand scare cannot catch', () => {
+    const s = createSpook(10, 10, 'hand');
+    popHand(s);
+    expect(s.scare).toBe(true);
+    const events = run(s, input({ chickenX: 10.5, chickenZ: 10 }), 0.3);
+    expect(events).toEqual([]);
+    expect(s.mode).toBe('chase');
+  });
+
+  it('pacified spooks follow and never catch', () => {
+    const s = createSpook(10, 10, 'socke');
+    pacify(s);
+    const events = run(s, input({ chickenX: 10.2, chickenZ: 10, chickenMoving: true }), 5);
+    expect(events).toEqual([]);
+    expect(s.mode).toBe('follow');
+    const far = createSpook(10, 10, 'socke');
+    pacify(far);
+    run(far, input({ chickenX: 20, chickenZ: 10 }), 6);
+    expect(20 - far.x).toBeLessThan(2);
   });
 });

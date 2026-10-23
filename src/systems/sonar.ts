@@ -90,6 +90,17 @@ interface Ring {
   prevFront: number;
   combo: number;
   comboDone: boolean;
+  /** Fired by an object (toy box echo), not by the chicken. */
+  echo: boolean;
+}
+
+export interface FireOptions {
+  /** Upgrade stats (Große Lunge). */
+  maxRadius?: number;
+  maxHold?: number;
+  /** Fixed radius override (echo rings). */
+  radius?: number;
+  echo?: boolean;
 }
 
 export interface SonarHooks {
@@ -98,14 +109,23 @@ export interface SonarHooks {
   /** Combo bonus at the end of a scream with >= 2 first-time reveals. */
   onCombo(count: number, bonus: number, x: number, z: number): void;
   /** Ring front passed a spook. */
-  onSpookHeard(r: Revealable, originX: number, originZ: number): void;
+  onSpookHeard(r: Revealable, originX: number, originZ: number, echo: boolean): void;
+  /** Ring front passed any prop (every time, not only the first). */
+  onPropHit(r: Revealable, echo: boolean): void;
 }
 
 export interface SonarSystem {
   /** Fire a ring at (x, z) for a given hold duration. Returns the max radius. */
-  fire(holdSeconds: number, x: number, z: number): number;
+  fire(holdSeconds: number, x: number, z: number, opts?: FireOptions): number;
   /** Charge preview while holding (radius preview circle); hold < 0 hides it. */
-  preview(holdSeconds: number, x: number, z: number, time: number): void;
+  preview(
+    holdSeconds: number,
+    x: number,
+    z: number,
+    time: number,
+    maxRadius?: number,
+    maxHold?: number,
+  ): void;
   update(dt: number): void;
 }
 
@@ -116,6 +136,7 @@ export function createSonarSystem(
   hooks: SonarHooks,
 ): SonarSystem {
   const color = new THREE.Color(0.42, 0.72, 1.3);
+  const echoColor = new THREE.Color(1.3, 0.95, 0.35);
   const rings: Ring[] = [];
   for (let i = 0; i < 4; i++) {
     const mat = ringMaterial(color, mask);
@@ -135,6 +156,7 @@ export function createSonarSystem(
       prevFront: 0,
       combo: 0,
       comboDone: false,
+      echo: false,
     });
   }
 
@@ -152,8 +174,8 @@ export function createSonarSystem(
   };
 
   return {
-    fire(hold, x, z) {
-      const max = sonarRadius(hold);
+    fire(hold, x, z, opts) {
+      const max = opts?.radius ?? sonarRadius(hold, opts?.maxRadius, opts?.maxHold);
       let ring = rings.find((r) => !r.active);
       if (!ring) ring = rings.reduce((a, b) => (a.t > b.t ? a : b));
       ring.active = true;
@@ -164,6 +186,8 @@ export function createSonarSystem(
       ring.prevFront = 0;
       ring.combo = 0;
       ring.comboDone = false;
+      ring.echo = opts?.echo === true;
+      ring.mat.uniforms.uColor!.value = ring.echo ? echoColor : color;
       ring.mesh.visible = true;
       ring.mesh.position.set(x, 0.04, z);
       ring.mesh.scale.set(max + 0.5, 1, max + 0.5);
@@ -171,12 +195,12 @@ export function createSonarSystem(
       setU(ring.mat, 'uWidth', max > SONAR.tapRadius + 0.5 ? 0.4 : 0.28);
       return max;
     },
-    preview(hold, x, z, time) {
+    preview(hold, x, z, time, maxRadius, maxHold) {
       if (hold < 0) {
         previewMesh.visible = false;
         return;
       }
-      const r = sonarRadius(hold);
+      const r = sonarRadius(hold, maxRadius, maxHold);
       previewMesh.visible = true;
       previewMesh.position.set(x, 0.03, z);
       previewMesh.scale.set(r + 0.3, 1, r + 0.3);
@@ -196,11 +220,14 @@ export function createSonarSystem(
           const d = distToRect(ring.x, ring.z, r.minX, r.minZ, r.maxX, r.maxZ);
           if (!crossed(d, ring.prevFront, front) && !(ring.prevFront === 0 && d === 0)) continue;
           reveal.hit(r);
-          if (r.kind === 'spook') hooks.onSpookHeard(r, ring.x, ring.z);
-          else if (r.kind === 'prop' && !r.rewarded) {
-            r.rewarded = true;
-            ring.combo++;
-            hooks.onFirstReveal(r, ring.combo);
+          if (r.kind === 'spook') hooks.onSpookHeard(r, ring.x, ring.z, ring.echo);
+          else if (r.kind === 'prop') {
+            hooks.onPropHit(r, ring.echo);
+            if (!r.rewarded) {
+              r.rewarded = true;
+              ring.combo++;
+              hooks.onFirstReveal(r, ring.combo);
+            }
           }
         }
         ring.prevFront = front;

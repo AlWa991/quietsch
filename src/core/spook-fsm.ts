@@ -1,9 +1,15 @@
-// Pure Socken-Geist state machine (no three). Positions are grid/world x,z in metres.
+// Pure spook state machines (no three). Positions are grid/world x,z in metres.
 // The FSM mutates its state object in place so the game loop allocates nothing per frame.
+// Kinds: 'socke' (wanders, hears, chases), 'rudi' (vacuum hunter, moves only while noise is
+// recent), 'hand' (static sofa ambush). Peaceful spooks follow the chicken ('follow') and
+// settle somewhere ('rest').
 
-export type SpookMode = 'wander' | 'alert' | 'chase' | 'return';
+import type { SpookKind } from './types';
+
+export type SpookMode = 'wander' | 'alert' | 'chase' | 'return' | 'dormant' | 'follow' | 'rest';
 
 export interface SpookState {
+  kind: SpookKind;
   mode: SpookMode;
   x: number;
   z: number;
@@ -17,6 +23,10 @@ export interface SpookState {
   heading: number;
   /** Seconds during which the spook cannot catch again. */
   cooldown: number;
+  /** Rudi: seconds since the last noise it heard. */
+  noiseAge: number;
+  /** Hand: the current emerge is the scripted scare and cannot catch. */
+  scare: boolean;
 }
 
 export interface SpookInput {
@@ -29,6 +39,8 @@ export interface SpookInput {
   canMove: (x: number, z: number) => boolean;
   /** Random in [0, 1). Injected for deterministic tests. */
   rand: () => number;
+  /** Multiplier on hop hearing distance (Flinke Füße = 0.5). Default 1. */
+  hopNoise?: number;
 }
 
 export const SPOOK = {
@@ -50,9 +62,39 @@ export const SPOOK = {
   radius: 0.3,
 } as const;
 
-export function createSpook(x: number, z: number): SpookState {
+export const RUDI = {
+  speed: 3.6,
+  /** Hop hearing distance while dormant-awake / idle. */
+  hearRadius: 5,
+  /** Once alerted, Rudi hears every hop within this distance (the whole kitchen). */
+  alertedHearRadius: 14,
+  /** Rudi only drives while the last noise is younger than this. */
+  noiseMemory: 1.1,
+  /** Gives up and drives home after this much silence. */
+  giveUp: 9,
+  catchCooldown: 3,
+} as const;
+
+export const HAND = {
+  /** Grabs when the chicken comes this close. */
+  grabRadius: 1.5,
+  /** Time to emerge before the grab lands. */
+  emergeTime: 0.45,
+  /** Arm stays out this long. */
+  grabTime: 0.5,
+  cooldown: 2.2,
+} as const;
+
+export const FOLLOW = {
+  speed: 2.8,
+  /** Peaceful spooks keep this distance behind the chicken. */
+  distance: 1.3,
+} as const;
+
+export function createSpook(x: number, z: number, kind: SpookKind = 'socke'): SpookState {
   return {
-    mode: 'wander',
+    kind,
+    mode: kind === 'rudi' ? 'dormant' : 'wander',
     x,
     z,
     homeX: x,
@@ -62,11 +104,26 @@ export function createSpook(x: number, z: number): SpookState {
     timer: 0,
     heading: 0,
     cooldown: 0,
+    noiseAge: Infinity,
+    scare: false,
   };
 }
 
+const isPeaceful = (s: SpookState): boolean => s.mode === 'follow' || s.mode === 'rest';
+
 /** Sonar heard (ring passed the spook). Starts or redirects a chase towards the sound origin. */
 export function hearSound(s: SpookState, originX: number, originZ: number): void {
+  if (s.kind === 'hand' || isPeaceful(s) || s.mode === 'dormant') return;
+  if (s.kind === 'rudi') {
+    s.targetX = originX;
+    s.targetZ = originZ;
+    s.noiseAge = 0;
+    if (s.mode !== 'chase') {
+      s.mode = 'chase';
+      s.timer = 0;
+    }
+    return;
+  }
   s.targetX = originX;
   s.targetZ = originZ;
   s.heading = Math.atan2(originX - s.x, originZ - s.z);
@@ -120,8 +177,136 @@ function pickWanderTarget(s: SpookState, input: SpookInput): void {
   s.timer = 2 + input.rand() * 3;
 }
 
+/** Rudi wakes up (power on). */
+export function wakeRudi(s: SpookState): void {
+  if (s.mode === 'dormant') s.mode = 'wander';
+}
+
+/** Scripted scare: the hand bursts out without being able to catch. */
+export function popHand(s: SpookState): void {
+  if (s.kind !== 'hand' || isPeaceful(s)) return;
+  s.mode = 'alert';
+  s.timer = 0.05;
+  s.scare = true;
+}
+
+/** Spook becomes peaceful and follows the chicken. */
+export function pacify(s: SpookState): void {
+  s.mode = 'follow';
+  s.scare = false;
+}
+
+/** Peaceful spook settles at (x, z) and idles there. */
+export function settle(s: SpookState, x: number, z: number): void {
+  s.mode = 'rest';
+  s.homeX = x;
+  s.homeZ = z;
+}
+
+export type SpookEvent = 'caught' | null;
+
 /** Advance one tick. Returns 'caught' on the tick the spook catches the chicken, else null. */
-export function stepSpook(s: SpookState, input: SpookInput): 'caught' | null {
+export function stepSpook(s: SpookState, input: SpookInput): SpookEvent {
+  if (s.mode === 'follow' || s.mode === 'rest') return stepPeaceful(s, input);
+  if (s.kind === 'rudi') return stepRudi(s, input);
+  if (s.kind === 'hand') return stepHand(s, input);
+  return stepSocke(s, input);
+}
+
+function stepPeaceful(s: SpookState, input: SpookInput): SpookEvent {
+  if (s.mode === 'rest') {
+    moveTowards(s, s.homeX, s.homeZ, SPOOK.returnSpeed, input);
+    return null;
+  }
+  const dx = s.x - input.chickenX;
+  const dz = s.z - input.chickenZ;
+  const d = Math.hypot(dx, dz);
+  if (d > FOLLOW.distance) {
+    // Aim at the point FOLLOW.distance away from the chicken on our side.
+    const k = FOLLOW.distance / d;
+    moveTowards(s, input.chickenX + dx * k, input.chickenZ + dz * k, FOLLOW.speed, input);
+  }
+  return null;
+}
+
+function stepRudi(s: SpookState, input: SpookInput): SpookEvent {
+  const { dt } = input;
+  s.cooldown = Math.max(0, s.cooldown - dt);
+  if (s.mode === 'dormant') return null;
+  s.noiseAge += dt;
+  const toChicken = Math.hypot(input.chickenX - s.x, input.chickenZ - s.z);
+  if (s.cooldown === 0 && toChicken <= SPOOK.catchRadius) {
+    s.mode = 'return';
+    s.cooldown = RUDI.catchCooldown;
+    s.noiseAge = Infinity;
+    return 'caught';
+  }
+  const hear =
+    (s.mode === 'chase' ? RUDI.alertedHearRadius : RUDI.hearRadius) * (input.hopNoise ?? 1);
+  if (input.chickenMoving && toChicken <= hear && s.cooldown === 0) {
+    hearSound(s, input.chickenX, input.chickenZ);
+  }
+  switch (s.mode) {
+    case 'chase':
+      // Relentless: always drives at the latest noise, but only while it is fresh.
+      if (s.noiseAge < RUDI.noiseMemory) moveTowards(s, s.targetX, s.targetZ, RUDI.speed, input);
+      if (s.noiseAge > RUDI.giveUp) s.mode = 'return';
+      break;
+    case 'return': {
+      const left = moveTowards(s, s.homeX, s.homeZ, SPOOK.returnSpeed, input);
+      if (left < SPOOK.arriveEps) s.mode = 'wander';
+      break;
+    }
+    default:
+      break; // 'wander' for Rudi = parked, engine idling
+  }
+  return null;
+}
+
+function stepHand(s: SpookState, input: SpookInput): SpookEvent {
+  const { dt } = input;
+  s.cooldown = Math.max(0, s.cooldown - dt);
+  const toChicken = Math.hypot(input.chickenX - s.x, input.chickenZ - s.z);
+  s.heading = Math.atan2(input.chickenX - s.x, input.chickenZ - s.z);
+  switch (s.mode) {
+    case 'wander':
+      if (s.cooldown === 0 && toChicken <= HAND.grabRadius) {
+        s.mode = 'alert';
+        s.timer = HAND.emergeTime;
+        s.scare = false;
+      }
+      break;
+    case 'alert':
+      s.timer -= dt;
+      if (s.timer <= 0) {
+        s.mode = 'chase';
+        s.timer = HAND.grabTime;
+        if (!s.scare && toChicken <= HAND.grabRadius) {
+          s.cooldown = HAND.cooldown + HAND.grabTime;
+          return 'caught';
+        }
+      }
+      break;
+    case 'chase':
+      s.timer -= dt;
+      if (s.timer <= 0) {
+        s.mode = 'return';
+        s.timer = HAND.cooldown;
+        s.cooldown = Math.max(s.cooldown, HAND.cooldown);
+      }
+      break;
+    default:
+      s.timer -= dt;
+      if (s.timer <= 0) {
+        s.mode = 'wander';
+        s.scare = false;
+      }
+      break;
+  }
+  return null;
+}
+
+function stepSocke(s: SpookState, input: SpookInput): SpookEvent {
   const { dt } = input;
   s.cooldown = Math.max(0, s.cooldown - dt);
   const toChicken = Math.hypot(input.chickenX - s.x, input.chickenZ - s.z);
@@ -134,7 +319,7 @@ export function stepSpook(s: SpookState, input: SpookInput): 'caught' | null {
 
   if (
     input.chickenMoving &&
-    toChicken <= SPOOK.noticeRadius &&
+    toChicken <= SPOOK.noticeRadius * (input.hopNoise ?? 1) &&
     (s.mode === 'wander' || s.mode === 'return')
   ) {
     hearSound(s, input.chickenX, input.chickenZ);

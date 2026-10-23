@@ -22,15 +22,19 @@ export function clamp(v: number, lo: number, hi: number): number {
 }
 
 /** Max ring radius for a given hold duration. Tap = small fixed ring, hold grows linearly. */
-export function sonarRadius(holdSeconds: number): number {
+export function sonarRadius(
+  holdSeconds: number,
+  maxRadius: number = SONAR.maxRadius,
+  maxHold: number = SONAR.maxHold,
+): number {
   if (!(holdSeconds >= SONAR.tapThreshold)) return SONAR.tapRadius;
-  const t = clamp((holdSeconds - SONAR.tapThreshold) / (SONAR.maxHold - SONAR.tapThreshold), 0, 1);
-  return SONAR.tapRadius + (SONAR.maxRadius - SONAR.tapRadius) * t;
+  const t = clamp((holdSeconds - SONAR.tapThreshold) / (maxHold - SONAR.tapThreshold), 0, 1);
+  return SONAR.tapRadius + (maxRadius - SONAR.tapRadius) * t;
 }
 
 /** Charge in 0..1 while the key is held (for UI / squash). */
-export function sonarCharge(holdSeconds: number): number {
-  return clamp(holdSeconds / SONAR.maxHold, 0, 1);
+export function sonarCharge(holdSeconds: number, maxHold: number = SONAR.maxHold): number {
+  return clamp(holdSeconds / maxHold, 0, 1);
 }
 
 /** Ring front radius after `elapsed` seconds, capped at `maxRadius`. */

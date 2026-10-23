@@ -1,5 +1,5 @@
 # SESSION_STATE – QUIETSCH!
-Stand: 2026-10-23 · Orchestrator: Fable (Phasen-Ebene) · Phase: P1 DONE → nächster Schritt T08
+Stand: 2026-10-23 · Orchestrator: Fable (Phasen-Ebene) · Phase: P2 DONE → nächster Schritt Gate 1 (T12 Playtest 2 + G1 Review)
 
 ## Projekt
 3D-Browser-Game (Three.js) für 24h-Contest. Theme „It's spooky outside“, Objekt Quietschhähnchen. GDD: docs/GDD.md · Architektur: docs/ARCHITECTURE.md · Tasks: .claude/TASKBOARD.md
@@ -22,15 +22,31 @@ Stand: 2026-10-23 · Orchestrator: Fable (Phasen-Ebene) · Phase: P1 DONE → n�
 - UI: Zahlen (HUD-Chips, Floats, Missionszähler) in Inter statt Pixelify, weil Pixelify C/2/5 wie O/8/S liest (Override am Ende von styles.css).
 - render/scene.ts angepasst (Ambient 0,06, Fog), postfx.ts unverändert.
 
+### P2-Entscheidungen
+- Pure Core (Vitest): `core/{economy,missions,story,save}.ts`; Szene-Glue: `systems/{missions,spooks,progress,flashlight}.ts`; UI: `ui/{title,shop,results,prompt}.ts`. Phasen title → play → finale → choice → ending (`core/story.canTransition`).
+- GameState erweitert um `hat, feathersEarned, time, rooms, missions`. Save: localStorage-Key `quietsch.save`, Version 1, defensiver Deserialiser (Fallback auf Defaults, falsche Version = null). Autosave bei Mission/Schloss/Shop/Geisterlicht/Ende.
+- Karten: Flags `card:<id>`, jede genau einmal (Panik wiederholbar). Wand-Interactables (Zeichnung/Kalender/Fenster) nach dem Lesen deaktiviert. Schlösser: Flags `lock:1..3`, Item-Fund öffnet das Schloss automatisch (kein Extra-Gang zur Tür); Tür-Lampen rot → grün.
+- Map: T-Zellen = Interactables (`world/house-map.ts INTERACTABLES`), keine Auto-Props mehr auf T. Möbel auf früheren T-Zellen nach FURNITURE verschoben. Spawns: 2 Socken Kinderzimmer, Rudi Küche, 2 Socken vor dem Wohnzimmerfenster, 2 Hände an den Sofas (`SOFA_SPOTS`, Hand 0,7 m vor Sofa-Mitte).
+- Echo-Rätsel: Ring trifft die richtige Kiste → nach 0,45 s eigener gelber 2,6-m-Ring + Echo-Quietscher (Spuks hören ihn). Falsche Kiste: −10 Federn + neuer Socken-Geist, der zur Kiste läuft.
+- Rudi: schläft bis Strom an, fährt nur solange Lärm < 1,1 s alt (3,6 m/s), hört Hüpfen in 5 m, alarmiert 14 m, nie Timeout außer 9 s Stille, Kabel = nur Küche. Motor-Loop (WebAudio) nach Distanz.
+- Hand: greift bei ≤ 1,5 m nach 0,45 s Auftauchen; erster Schrei im Wohnzimmer = gescripteter Pop (kann nicht fangen).
+- Uhr: Schrei zählt, wenn Schreizeit und Blitz ≤ ±1 s auseinander (auch Blitz danach), max. 1 Zählung pro Blitz; Kuckuck bei jedem Blitz, wenn Hähnchen im Wohnzimmer.
+- Friedliche Spuks (Basis): nur Socken; „im Licht“ = Nachtlicht 2,6 m, Kühlschrank 3,2 m (nach Strom), Blitz ≤ 1,2 s her, Taschenlampenkegel. Folgen dem Hähnchen, am Korb +1 Geisterlicht.
+- Gefangen: −1 Herz, −30 % Federn, Rückstoß 1,2 m statt Teleport; 0 Herzen = Panik-Karte + Teleport Korb; Korb regeneriert alle Herzen in 10 s.
+- Finale: Spuks erscheinen sofort im Bogen hinter dem Hähnchen (statt 20 s Anmarsch). Leertaste in der Wahl = Schreien.
+- Ränge 0/80/220/450/800 XP; texts.ts hat keine eigenen Schwellen mehr (economy ist Quelle).
+- `.claude/**` in eslint ignores (Playtester-Worktree brach `pnpm lint`). `.dockerignore` schließt .env* aus.
+- `window.__game` hat jetzt `phase`, `modal`, `actions` (nicht optional).
+
 ## Kommandos
 pnpm dev · pnpm build · pnpm test · pnpm e2e · pnpm typecheck · pnpm lint · pnpm format:check · pnpm deploy
 Debug: `?debug=1` (FPS, Spuk-Hörradius, Tasten 1–4 Raum-Teleport, L = Blitz) · `?ui=1` UI-Demo · `?audio=1` Audio-Demo
-E2E/Playtest-Hooks: `window.__game.actions.{scream(hold), teleport(room|index), lightning()}`
+E2E/Playtest-Hooks: `window.__game.{phase, modal, state}` · `actions.{scream(hold), teleport(room|index), warp(x,z), lightning(), completeMission('echo'|'jaeger'|'uhr'), giveFeathers(n), openLock(1|2|3), openShop(), gotoFinale(), chooseEnding('A'|'B')}`
 docker compose up -d --build && curl -s -o /dev/null -w "%{http_code}" localhost:8080/health   (ab T11)
 
 ## Done / Next / Blocker
-Done: P0, P1 (T04–T07) · Next: T08 Playtest 1 (Opus, fresh) → P2 (T09–T11) · Blocker: keine
-Offen/bekannt: Swiftshader-FPS 12–17 (Software-GL, kein Maßstab), echte GPU noch nicht gemessen; Bundle > 500 kB (Three.js, unkritisch); Combo-Ökonomie ungebalanced (P2).
+Done: P0, P1 (T04–T07), P2 (T09–T11) · Next: Gate 1 (T12 Playtest 2 Opus fresh + G1 Reviewer/spec-verifier Sonnet fresh) · Blocker: keine
+Offen/bekannt: Swiftshader-FPS 10–17 (Software-GL, kein Maßstab), echte GPU noch nicht gemessen; Bundle > 500 kB (Three.js, unkritisch); 12–15-Min-Arc nicht real durchgespielt (nur e2e-Debug-Pfad + Mechanik-Skript), Balancing Federn/Preise/Sterne-Partime offen für Playtest 2; Köder „bald verfügbar“; Krone kaufbar (Keller P4); Federn für Erst-Reveals werden nach Reload erneut vergeben (Reveal-Status nicht gespeichert); `zzfx` ungenutzt in package.json.
 
 ## Rekonstruktions-Check
 1. Protagonist? 2. Engine? 3. Was öffnet die Haustür? 4. Phase? 5. Offene Tasks?

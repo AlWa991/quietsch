@@ -1,6 +1,7 @@
 import type { Store } from './store';
 import { el, prefersReducedMotion, replay } from './dom';
-import { rankName, rankProgress } from './texts';
+import { rankName } from './texts';
+import { rankProgress } from '@/core/economy';
 
 export interface Hud {
   readonly el: HTMLElement;
@@ -78,7 +79,7 @@ export function createHud(root: HTMLElement, store: Store): Hud {
   function renderRank(): void {
     const s = store.get();
     rankLabel.textContent = rankName(s.rank);
-    rankFill.style.width = `${Math.round(rankProgress(s.rank, s.xp) * 100)}%`;
+    rankFill.style.width = `${Math.round(rankProgress(s.xp) * 100)}%`;
   }
 
   function setFeathers(v: number): void {
@@ -96,6 +97,7 @@ export function createHud(root: HTMLElement, store: Store): Hud {
   }
 
   function onFeathers(): void {
+    renderRank();
     const target = store.get().feathers;
     cancelAnimationFrame(raf);
     replay(feathers, 'q-pop');

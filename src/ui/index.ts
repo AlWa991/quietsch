@@ -5,7 +5,7 @@ import { createHud, type Hud } from './hud';
 import { hideMission, mountMission, showMission, updateMissionProgress } from './mission';
 import { mountStoryCardHost, showStoryCard } from './story-card';
 import { mountToastStack, toast } from './toast';
-import { rankName, STORY_CARDS } from './texts';
+import { rankName } from './texts';
 
 export interface Ui {
   hud: Hud;
@@ -41,10 +41,6 @@ export function initUi(root: HTMLElement, store: Store): Ui {
     if (!prefersReducedMotion()) replay(flash, 'q-flash--rank');
   });
   store.on('mission-progress', (e) => updateMissionProgress(e.progress, e.goal));
-  store.on('story-card', (e) => {
-    const card = STORY_CARDS[e.cardId];
-    if (card) void showStoryCard(card);
-  });
 
   return { hud, spawnFloat, toast, showStoryCard, showMission, hideMission };
 }

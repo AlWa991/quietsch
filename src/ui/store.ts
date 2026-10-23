@@ -1,4 +1,5 @@
 import type { GameEvent, GameState } from '@/core/types';
+import { createMissions } from '@/core/missions';
 
 type EventType = GameEvent['type'];
 type Handler<T extends EventType> = (event: Extract<GameEvent, { type: T }>) => void;
@@ -33,7 +34,7 @@ export function createStore(initial: GameState): Store {
   };
 }
 
-export function initialGameState(): GameState {
+export function initialGameState(rand: () => number = Math.random): GameState {
   return {
     feathers: 0,
     ghostlights: 0,
@@ -44,7 +45,12 @@ export function initialGameState(): GameState {
     stars: {},
     upgrades: {},
     hats: [],
+    hat: null,
     locksOpened: 0,
     flags: {},
+    feathersEarned: 0,
+    time: 0,
+    rooms: {},
+    missions: createMissions(rand),
   };
 }

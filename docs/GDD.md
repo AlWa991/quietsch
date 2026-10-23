@@ -107,3 +107,21 @@ Stand: 2026-10-23 · Quelle: Projektplan (Abschnitt 2), ergänzt um Steuerung un
 | Hexenhut | 40 | Kosmetisch. Sieht gruselig aus, ist aber nur Deko. |
 | Kürbis-Kopf | 40 | Kosmetisch. Halloween braucht Kürbisse. |
 | Krone | 250 | Kosmetisch. Für Legenden, die im Keller gefunden wurden. |
+
+### Ergänzungen P2 (implementiert in `src/ui/texts.ts`)
+
+- **Titel:** „QUIETSCH!“ · „Raus aus dem dunklen Haus“ · Prämisse: „Halloween-Nacht, Sturm, stockdunkles Haus: Als Quietschhähnchen siehst du nur, was dein Schrei enthüllt.“ · Buttons „Spielen“, „Weiterspielen“
+- **Steuerung ergänzt:** F = Taschenlampe (ab Küche). Esc im Korb = Shop, sonst Pause („Der Shop ist in Bellos Korb im Flur.“)
+- **Story-Karten:** „Eine Kinderzeichnung“ · „Der Kalender“ · „Das große Fenster“: „Die Spuks stehen vor dem Fenster und schauen hinaus. Nicht zu dir.“ · „Die Kuckucksuhr“ · „Panik!“: „Zurück im Korb. Herzen regenerieren.“
+- **Missionen:** Hub „Finde drei Dinge für die Haustür.“ / „Zur Haustür!“ · Küche nach Strom: „Hol die Taschenlampe aus der Schublade.“
+- **Toasts:** „Schlüssel gefunden!“ · „Leer! – Nur Staub. −10 Federn. Da kommt was …“ · „Strom an! – Der Kühlschrank leuchtet. Etwas ist aufgewacht …“ · „Zu dunkel. – Erst Strom an.“ · „Taschenlampe gefunden! – F: an/aus. Lockt keine Spuks an.“ · „Batterie leer – Im Korb lädt sie wieder.“ · „Kuckuck! n/3“ · „Schrei im Blitz! – Die Uhr hört nur, wenn es blitzt.“ · „Mission geschafft! +50 Federn“ · „Friedlich – Er folgt dir in den Korb.“ · „Geisterlicht! +1“ · „Alle drei Schlösser offen. – Zur Haustür!“ · Türklingel (Minute 5): „…?“
+- **Shop:** Untertitel „Federn gegen Mut. Bello hätte es so gewollt.“ · „Kaufen · Preis“, „Gekauft“, „Tragen“, „Abnehmen“, „Zu wenig Federn“, „bald verfügbar“ (Köder), „Weiter“
+- **Finale-Wahl:** „Die Tür ist offen.“ · „Hinter dir warten alle Spuks. Draußen heult der Sturm.“ · „Schreien“ (Tür auf, hinaus in den Sturm) · „Still bleiben“ (Zurück in den Korb, nicht allein)
+- **Enden:** „Ende A: Hinaus in den Sturm“ · „Ende B: Im Korb“ · Ergebnis zusätzlich mit „Geisterlichter“
+
+### Balancing P2 (Ist-Stand, `src/core/economy.ts`)
+
+- Ränge (XP kumulativ): Küken 0 · Gockel 80 · Hahn 220 · Schreihals 450 · Legende 800. XP = verdiente Federn + 100 pro Mission + 100 fürs Ende.
+- Mission: +50 Federn. Falsche Kiste: −10 Federn + Socken-Geist. Gefangen: −1 Herz, −30 % (Dicke Haut −15 %). 0 Herzen = Panik, Korb füllt Herzen in 10 s.
+- Upgrades: Große Lunge Radius 14→18 m, volle Ladung 1,5→1,2 s · Flinke Füße ×1,25 Tempo, Hüpfgeräusch halber Radius · Mut +1 Herz.
+- Sterne pro Raum: Mission · unter 4:00 im Raum · nie im Raum gefangen (max. 9).

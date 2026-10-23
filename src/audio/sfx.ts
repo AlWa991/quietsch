@@ -210,4 +210,123 @@ export const sfx = {
     if (!bus) return;
     tone(bus, { type: 'square', f0: 1200, f1: 700, dur: 0.04, gain: 0.12 });
   },
+  /** Small, slightly muffled squeak answering from a toy box (Echo-Rätsel). */
+  echo(delay: number): void {
+    const bus = getBus();
+    if (!bus) return;
+    squeakAt(bus, delay, 1100, 1900, 0.08, 0.14);
+    squeakAt(bus, delay + 0.09, 1700, 1200, 0.06, 0.1);
+  },
+
+  wrong(): void {
+    const bus = getBus();
+    if (!bus) return;
+    tone(bus, { type: 'square', f0: 220, f1: 140, dur: 0.25, gain: 0.18 });
+    tone(bus, { type: 'square', f0: 160, f1: 100, start: 0.12, dur: 0.3, gain: 0.15 });
+  },
+
+  /** Key found / lock opened jingle. */
+  unlock(): void {
+    const bus = getBus();
+    if (!bus) return;
+    [784, 988, 1175, 1568].forEach((f, i) =>
+      tone(bus, { type: 'triangle', f0: f, f1: f, start: i * 0.07, dur: 0.18, gain: 0.22 }),
+    );
+    tone(bus, { type: 'square', f0: 2400, f1: 1800, start: 0.3, dur: 0.06, gain: 0.08 });
+  },
+
+  powerOn(): void {
+    const bus = getBus();
+    if (!bus) return;
+    tone(bus, { type: 'sawtooth', f0: 40, f1: 120, dur: 0.6, gain: 0.25, attack: 0.05 });
+    tone(bus, { type: 'square', f0: 60, f1: 60, start: 0.05, dur: 0.5, gain: 0.08 });
+    tone(bus, { type: 'square', f0: 3000, f1: 2000, dur: 0.05, gain: 0.12 });
+  },
+
+  cuckoo(): void {
+    const bus = getBus();
+    if (!bus) return;
+    tone(bus, { type: 'sine', f0: 740, f1: 735, dur: 0.22, gain: 0.25, attack: 0.02 });
+    tone(bus, { type: 'sine', f0: 587, f1: 580, start: 0.26, dur: 0.32, gain: 0.25, attack: 0.02 });
+  },
+
+  /** Scripted scare: something bursts out of the sofa. */
+  handPop(): void {
+    const bus = getBus();
+    if (!bus) return;
+    const { ctx, master } = bus;
+    const src = ctx.createBufferSource();
+    src.buffer = getNoiseBuffer(ctx);
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass';
+    f.frequency.setValueAtTime(1800, ctx.currentTime);
+    f.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + 0.4);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.5, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.45);
+    src.connect(f).connect(g).connect(master);
+    src.start();
+    src.stop(ctx.currentTime + 0.5);
+    tone(bus, { type: 'sawtooth', f0: 90, f1: 45, dur: 0.5, gain: 0.3 });
+  },
+
+  click(): void {
+    const bus = getBus();
+    if (!bus) return;
+    tone(bus, { type: 'square', f0: 2200, f1: 1800, dur: 0.025, gain: 0.1 });
+  },
+
+  buy(): void {
+    const bus = getBus();
+    if (!bus) return;
+    tone(bus, { type: 'square', f0: 988, f1: 988, dur: 0.06, gain: 0.15 });
+    tone(bus, { type: 'square', f0: 1319, f1: 1319, start: 0.06, dur: 0.16, gain: 0.15 });
+  },
 };
+
+export interface MotorLoop {
+  /** 0 = silent, 1 = full roar. Smoothly ramped. */
+  set(level: number): void;
+}
+
+/** Continuous vacuum motor for Rudi (created lazily once audio is unlocked). */
+export function createMotor(): MotorLoop {
+  let nodes: { g: GainNode; osc: OscillatorNode; ctx: AudioContext } | null = null;
+  let last = -1;
+  return {
+    set(level) {
+      const v = Math.round(clamp(level, 0, 1) * 50) / 50;
+      if (v === last) return;
+      last = v;
+      if (!nodes) {
+        const bus = getBus();
+        if (!bus) return;
+        const { ctx, master } = bus;
+        const osc = ctx.createOscillator();
+        osc.type = 'sawtooth';
+        osc.frequency.value = 70;
+        const noise = ctx.createBufferSource();
+        noise.buffer = getNoiseBuffer(ctx);
+        noise.loop = true;
+        const bp = ctx.createBiquadFilter();
+        bp.type = 'bandpass';
+        bp.frequency.value = 900;
+        bp.Q.value = 0.8;
+        const lp = ctx.createBiquadFilter();
+        lp.type = 'lowpass';
+        lp.frequency.value = 1400;
+        const g = ctx.createGain();
+        g.gain.value = 0;
+        osc.connect(lp).connect(g);
+        noise.connect(bp).connect(g);
+        g.connect(master);
+        osc.start();
+        noise.start();
+        nodes = { g, osc, ctx };
+      }
+      const t = nodes.ctx.currentTime;
+      nodes.g.gain.setTargetAtTime(v * 0.35, t, 0.12);
+      nodes.osc.frequency.setTargetAtTime(60 + v * 70, t, 0.2);
+    },
+  };
+}

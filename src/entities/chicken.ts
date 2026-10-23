@@ -17,6 +17,10 @@ export interface Chicken {
   readonly moving: boolean;
   /** 0..1 scream charge, inflates the chicken while holding. */
   charge: number;
+  /** Movement speed multiplier (Flinke Füße). */
+  speedMul: number;
+  /** Facing angle (radians, atan2(dx, dz)); the beak points along +z at 0. */
+  readonly facing: number;
   update(dt: number, axis: { x: number; z: number }, grid: CollisionGrid, time: number): void;
   teleport(x: number, z: number): void;
   /** One-shot squash impulse (e.g. scream release). */
@@ -48,11 +52,15 @@ export function createChickenEntity(x: number, z: number): Chicken {
     pos,
     vel,
     charge: 0,
+    speedMul: 1,
     get moving() {
       return moving;
     },
+    get facing() {
+      return facing;
+    },
     update(dt, axis, grid, time) {
-      const slow = 1 - self.charge * 0.6;
+      const slow = (1 - self.charge * 0.6) * self.speedMul;
       const k = 1 - Math.exp(-ACCEL * dt);
       vel.x += (axis.x * SPEED * slow - vel.x) * k;
       vel.z += (axis.z * SPEED * slow - vel.z) * k;

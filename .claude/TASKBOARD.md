@@ -14,9 +14,9 @@ Legende: TODO · WIP · REVIEW · DONE · CUT · (Modell) · Owner-Dateien exklu
 - [ ] T08 (Opus, fresh) Playtest 1 Kurzbefund
 
 ## P2 Systeme & Content
-- [ ] T09 (Opus-Lead) missions (Echo-Rätsel, Sicherung/Rudi, Kuckucksuhr/Hände), Herzen, Fangen→Korb, economy (Federn, Combo, Shop, Upgrades, XP/Rang, Sterne), story (Karten, Twists, 3 Schlösser, 2 Enden), save · DoD: Durchlauf ohne Console-Errors
-- [ ] T10 (Sonnet) tests/ für core (grid, sonar, fsm, economy, story), e2e/smoke (Console, Screenshots Titel/Hub/Reveal/Ende A/B) · DoD: vitest + e2e grün
-- [ ] T11 (Sonnet) Dockerfile (nginx-unprivileged), compose, nginx.conf /health, README · DoD: compose up, /health 200, whoami ≠ root
+- [x] T09 DONE (Opus-Lead) missions (Echo-Rätsel, Sicherung/Rudi, Kuckucksuhr/Hände), Herzen, Fangen→Korb, economy (Federn, Combo, Shop, Upgrades, XP/Rang, Sterne), story (Karten, Twists, 3 Schlösser, 2 Enden), save · DoD: Durchlauf ohne Console-Errors
+- [x] T10 DONE (Sonnet) tests/ für core (grid, sonar, fsm, economy, story), e2e/smoke (Console, Screenshots Titel/Hub/Reveal/Ende A/B) · DoD: vitest + e2e grün
+- [x] T11 DONE (Sonnet) Dockerfile (nginx-unprivileged), compose, nginx.conf /health, README · DoD: compose up, /health 200, whoami ≠ root
 
 ## Gate 1
 - [ ] T12 (Opus, fresh) Playtest 2 mit Bugliste · [ ] G1 (Sonnet, fresh) Reviewer + spec-verifier gegen GDD
@@ -34,5 +34,6 @@ Legende: TODO · WIP · REVIEW · DONE · CUT · (Modell) · Owner-Dateien exklu
 - [ ] T23 (Sonnet) finaler Deploy + Abgabetext · [ ] T24 (Haiku) Chat-Log-Summary, SESSION_STATE final
 
 ## DONE
+- [x] P2 Systeme & Content (T09–T11), 2026-10-23: Titel → Intro → 3 Missionen (Echo-Rätsel, Rudi/Sicherung/Taschenlampe, Kuckucksuhr/Hände) → 3 Schlösser → Finale → Ende A/B → „Nochmal spielen“. Economy/XP/Ränge/Herzen/Panik/Sterne/Shop/Hüte/Save/Türklingel. typecheck/lint/format/test (69)/build/e2e (7) grün, Docker /health 200, whoami=nginx. Screenshots e2e/screenshots/{title,shop,mission-1..3,finale,ending-a,ending-b}.png
 - [x] P1 Vertical Slice (T04–T07), 2026-10-23: typecheck/lint/format/test (22)/build/e2e (4) grün, Screenshots e2e/screenshots/{boot,reveal}.png
 - [x] T03 (Orchestrator) gh repo create AlWa991/quietsch --public (Repo: https://github.com/AlWa991/quietsch), Pages-Aktivierung verschoben nach T14

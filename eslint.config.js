@@ -9,6 +9,7 @@ export default tseslint.config(
       'e2e/screenshots/**',
       'test-results/**',
       'playwright-report/**',
+      '.claude/**',
     ],
   },
   js.configs.recommended,

@@ -1,5 +1,7 @@
 // German in-game texts (GDD "In-Game-Texte"). Single lookup for UI copy.
 
+import type { CardId } from '@/core/story';
+
 export interface StoryCardText {
   title: string;
   text: string;
@@ -9,24 +11,12 @@ export interface StoryCardText {
 /** Rank names, index 0 = rank 1. */
 export const RANK_NAMES = ['Küken', 'Gockel', 'Hahn', 'Schreihals', 'Legende'] as const;
 
-/** Cumulative XP needed to reach each rank (index 0 = rank 1). Display-only; economy owns real values. */
-export const RANK_XP_THRESHOLDS = [0, 100, 300, 700, 1500] as const;
-
 export function rankName(rank: number): string {
   const idx = Math.min(Math.max(rank, 1), RANK_NAMES.length) - 1;
   return RANK_NAMES[idx] ?? RANK_NAMES[0];
 }
 
-/** Progress 0..1 towards the next rank; 1 at max rank. */
-export function rankProgress(rank: number, xp: number): number {
-  const idx = Math.min(Math.max(rank, 1), RANK_NAMES.length) - 1;
-  const next = RANK_XP_THRESHOLDS[idx + 1];
-  const cur = RANK_XP_THRESHOLDS[idx] ?? 0;
-  if (next === undefined) return 1;
-  return Math.min(1, Math.max(0, (xp - cur) / (next - cur)));
-}
-
-export const STORY_CARDS: Record<string, StoryCardText> = {
+export const STORY_CARDS: Record<CardId, StoryCardText> = {
   intro: {
     title: 'Halloween-Nacht',
     text: [
@@ -53,4 +43,140 @@ export const STORY_CARDS: Record<string, StoryCardText> = {
     title: 'Finale',
     text: 'Dein Schrei war immer eine Einladung.',
   },
+  drawing: {
+    title: 'Eine Kinderzeichnung',
+    text: '„Bello hat Angst vor Gewitter.“',
+  },
+  calendar: {
+    title: 'Der Kalender',
+    text: 'Ein Datum ist eingekreist, „Umzug“, 23.10.2025. Genau ein Jahr her.',
+  },
+  window: {
+    title: 'Das große Fenster',
+    text: 'Die Spuks stehen vor dem Fenster und schauen hinaus. Nicht zu dir.',
+  },
+  clock: {
+    title: 'Die Kuckucksuhr',
+    text: 'Geheimfach geöffnet. Darin: Haustürschlüssel.',
+  },
+  panic: {
+    title: 'Panik!',
+    text: 'Zurück im Korb. Herzen regenerieren.',
+    button: 'Durchatmen',
+  },
 };
+
+/** Title screen (GDD Prämisse + Steuerung). */
+export const TITLE = {
+  title: 'QUIETSCH!',
+  subtitle: 'Raus aus dem dunklen Haus',
+  premise:
+    'Halloween-Nacht, Sturm, stockdunkles Haus: Als Quietschhähnchen siehst du nur, was dein Schrei enthüllt.',
+  controls: [
+    ['WASD / Pfeile', 'bewegen'],
+    ['Leertaste kurz', 'Quietscher'],
+    ['Leertaste halten', 'Schrei (Sichtweite)'],
+    ['E', 'interagieren'],
+    ['F', 'Taschenlampe'],
+    ['Esc', 'Pause / Shop im Korb'],
+  ] as const,
+  play: 'Spielen',
+  continue: 'Weiterspielen',
+} as const;
+
+/** HUD, toast and prompt texts (GDD "HUD, Toasts und Hinweise"). */
+export const T = {
+  caught: 'Gefangen!',
+  caughtSub: (lossPct: number): string => `−1 Herz, −${lossPct} % Federn.`,
+  keyFound: 'Schlüssel gefunden!',
+  wrongBox: 'Leer!',
+  wrongBoxSub: (lost: number): string =>
+    lost > 0 ? `Nur Staub. −${lost} Federn. Da kommt was …` : 'Nur Staub. Da kommt was …',
+  boxEmpty: 'Die Kiste ist leer.',
+  powerOn: 'Strom an!',
+  powerOnSub: 'Der Kühlschrank leuchtet. Etwas ist aufgewacht …',
+  drawerDark: 'Zu dunkel.',
+  drawerDarkSub: 'Erst Strom an.',
+  flashlight: 'Taschenlampe gefunden!',
+  flashlightSub: 'F: an/aus. Lockt keine Spuks an.',
+  batteryEmpty: 'Batterie leer',
+  batteryEmptySub: 'Im Korb lädt sie wieder.',
+  clockCount: (n: number): string => `Kuckuck! ${n}/3`,
+  clockMiss: 'Schrei im Blitz!',
+  clockMissSub: 'Die Uhr hört nur, wenn es blitzt.',
+  missionDone: 'Mission geschafft!',
+  missionDoneSub: (feathers: number): string => `+${feathers} Federn`,
+  ghostlight: 'Geisterlicht! +1',
+  ghostlightSub: 'Ein Spuk ist jetzt friedlich.',
+  peaceful: 'Friedlich',
+  peacefulSub: 'Er folgt dir in den Korb.',
+  doorbell: '…?',
+  allLocks: 'Alle drei Schlösser offen.',
+  allLocksSub: 'Zur Haustür!',
+  toDoor: 'Zur Haustür!',
+  hub: 'Finde drei Dinge für die Haustür.',
+  rankUp: 'Neuer Rang!',
+  bought: 'Gekauft!',
+  saved: 'Gespeichert',
+} as const;
+
+/** Prompt verbs shown as "E: <verb>". */
+export const PROMPT: Record<string, string> = {
+  toybox: 'Kiste öffnen',
+  drawing: 'Zeichnung ansehen',
+  fuse: 'Sicherung umlegen',
+  drawer: 'Schublade öffnen',
+  calendar: 'Kalender lesen',
+  clock: 'Uhr ansehen',
+  window: 'Hinausschauen',
+  frontdoor: 'Haustür',
+  korb: 'Bellos Korb (Shop)',
+};
+
+export const SHOP = {
+  title: 'Bellos Korb',
+  subtitle: 'Federn gegen Mut. Bello hätte es so gewollt.',
+  buy: 'Kaufen',
+  owned: 'Gekauft',
+  wear: 'Tragen',
+  takeOff: 'Abnehmen',
+  tooExpensive: 'Zu wenig Federn',
+  soon: 'bald verfügbar',
+  close: 'Weiter',
+} as const;
+
+export const PAUSE = {
+  title: 'Pause',
+  text: 'Der Shop ist in Bellos Korb im Flur.',
+  resume: 'Weiter',
+} as const;
+
+export const CHOICE = {
+  title: 'Die Tür ist offen.',
+  text: 'Hinter dir warten alle Spuks. Draußen heult der Sturm.',
+  scream: 'Schreien',
+  screamSub: 'Tür auf, hinaus in den Sturm',
+  silent: 'Still bleiben',
+  silentSub: 'Zurück in den Korb, nicht allein',
+} as const;
+
+export const ENDINGS = {
+  A: {
+    title: 'Ende A: Hinaus in den Sturm',
+    text: 'Am nächsten Morgen. Ein Umzugswagen vor dem Haus. Ein Kind springt heraus, sieht dich im Gras und ruft: ‚Wir haben dich vergessen!‘ Bello bellt zum ersten Mal seit Tagen.',
+  },
+  B: {
+    title: 'Ende B: Im Korb',
+    text: 'Du bleibst still. Alle Spuks kuscheln sich mit dir in den Hundekorb. Warm, nicht allein. Draußen tobt der Sturm weiter. Drinnen ist es gemütlich.',
+  },
+} as const;
+
+export const RESULTS = {
+  heading: 'Nacht vorbei',
+  feathers: 'Federn',
+  ghostlights: 'Geisterlichter',
+  stars: 'Sterne',
+  rank: 'Rang',
+  time: 'Zeit',
+  replay: 'Nochmal spielen',
+} as const;

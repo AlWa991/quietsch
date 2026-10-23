@@ -2,31 +2,63 @@ import * as THREE from 'three';
 import './ui/styles.css';
 import { readDebugFlags } from './debug';
 import { cellsOfType, parseHouseMap } from './core/grid';
-import { hearSound, stepSpook, SPOOK, type SpookInput } from './core/spook-fsm';
 import { SONAR, sonarCharge } from './core/sonar';
 import { GridCell, type GameState } from './core/types';
+import { buy, roomStars, toggleHat } from './core/economy';
+import { MISSION_IDS, MISSION_ROOM, type MissionId } from './core/missions';
+import { clearSave, loadGame } from './core/save';
+import {
+  canTransition,
+  countLocks,
+  FINALE_CARDS,
+  formatTime,
+  REPEATABLE_CARDS,
+  takeCard,
+  type CardId,
+  type EndingId,
+  type Phase,
+} from './core/story';
 import { createPostFx } from './render/postfx';
 import { RevealSystem } from './render/reveal';
 import { createRenderContext } from './render/scene';
 import { createStore, initialGameState } from './ui/store';
 import { initUi } from './ui/index';
+import { showStoryCard } from './ui/story-card';
+import { showTitle } from './ui/title';
+import { createPause, createShop } from './ui/shop';
+import { showChoice, showEnding, type Choice } from './ui/results';
+import { createBattery, createPrompt } from './ui/prompt';
+import { PROMPT, rankName, STORY_CARDS, T } from './ui/texts';
 import { buildHouse, placeProps } from './world/builder';
-import { HOUSE_ASCII, HOUSE_ROOMS } from './world/house-map';
+import { HOUSE_ASCII, HOUSE_ROOMS, roomIdAt, SOFA_SPOTS } from './world/house-map';
 import { createChickenEntity } from './entities/chicken';
-import { createSpookEntity, type Spook } from './entities/spook';
+import { createHat } from './entities/hats';
 import { createCameraRig } from './systems/camera';
-import { boxFree, isBlocked, type CollisionGrid } from './systems/collision';
+import { boxFree, moveAndSlide, type CollisionGrid } from './systems/collision';
 import { createInput } from './systems/input';
 import { createLightning } from './systems/lightning';
 import { createSonarSystem } from './systems/sonar';
+import { createSpookManager } from './systems/spooks';
+import { createProgress } from './systems/progress';
+import { createMissions, type Objective } from './systems/missions';
+import { createFlashlight } from './systems/flashlight';
 import { createAmbience } from './audio/ambience';
 import { installAudioUnlock } from './audio/context';
 import { sfx } from './audio/sfx';
 
-interface GameActions {
+/** Test/debug API on window.__game.actions (used by e2e and the playtester). */
+export interface GameActions {
   scream(holdSeconds: number): void;
   teleport(room: string | number): void;
+  /** Teleport to exact world coordinates (playtests). */
+  warp(x: number, z: number): void;
   lightning(): void;
+  completeMission(id: MissionId): void;
+  giveFeathers(n: number): void;
+  openLock(n: number): void;
+  openShop(): void;
+  gotoFinale(): void;
+  chooseEnding(choice: EndingId): void;
 }
 
 declare global {
@@ -34,11 +66,17 @@ declare global {
     __game?: {
       ready: boolean;
       state: GameState;
+      phase: Phase;
+      modal: boolean;
       scene: THREE.Scene;
-      actions?: GameActions;
+      actions: GameActions;
     };
   }
 }
+
+/** Scripted doorbell scare after this much play time (s). */
+const DOORBELL_AT = 300;
+const KORB_REACH = 1.6;
 
 const params = new URLSearchParams(window.location.search);
 const uiRoot = document.getElementById('ui');
@@ -61,6 +99,8 @@ function boot(root: HTMLElement): void {
   const store = createStore(initialGameState());
   const ui = initUi(root, store);
   const reveal = new RevealSystem();
+  const prompt = createPrompt(root);
+  const battery = createBattery(root);
 
   installAudioUnlock();
   const ambience = createAmbience();
@@ -70,6 +110,7 @@ function boot(root: HTMLElement): void {
   const house = buildHouse(map, reveal);
   ctx.scene.add(house.group);
   const grid: CollisionGrid = { width: map.width, height: map.height, blocked: house.blocked };
+  // Copied before props/interactables block cells: ghosts float through furniture, not walls.
   const wallsOnly: CollisionGrid = {
     width: map.width,
     height: map.height,
@@ -82,12 +123,14 @@ function boot(root: HTMLElement): void {
     l.position.set(d.x, 1.2, d.z);
     ctx.scene.add(l);
   }
-  const nightCell = cellsOfType(map, GridCell.LightSource).find(
-    (c) => c.x >= 17 && c.x <= 30 && c.y >= 12,
-  );
+  const lightCells = cellsOfType(map, GridCell.LightSource);
+  const nightCell = lightCells.find((c) => roomIdAt(c.x, c.y) === 'flur');
+  const fridgeCell = lightCells.find((c) => roomIdAt(c.x, c.y) === 'kueche') ?? { x: 45, y: 14 };
+  let nightLight: { x: number; z: number } | null = null;
   if (nightCell) {
+    nightLight = { x: nightCell.x + 0.5, z: nightCell.y + 0.5 };
     const night = new THREE.PointLight(0xffa860, 3.5, 4.5, 1.3);
-    night.position.set(nightCell.x + 0.5, 0.35, nightCell.y + 0.5);
+    night.position.set(nightLight.x, 0.35, nightLight.z);
     const bulb = new THREE.Mesh(
       new THREE.SphereGeometry(0.07, 6, 4),
       new THREE.MeshBasicMaterial({ color: 0xffb070 }),
@@ -96,21 +139,64 @@ function boot(root: HTMLElement): void {
     ctx.scene.add(night, bulb);
   }
 
+  const korb = house.korb;
   const spawnCell = cellsOfType(map, GridCell.ChickenSpawn)[0] ?? { x: 24, y: 24 };
   const chicken = createChickenEntity(spawnCell.x + 0.5, spawnCell.y + 0.5);
   ctx.scene.add(chicken.object);
-
-  // One Socken-Geist in the Kinderzimmer, the spawn closest to the Flur door.
-  const spookCells = cellsOfType(map, GridCell.SpookSpawn).filter((c) => c.x < 16 && c.y > 11);
-  const spookCell = spookCells.sort((a, b) => b.y - a.y)[0] ?? { x: 10, y: 26 };
-  const spooks: Spook[] = [createSpookEntity(spookCell.x + 0.5, spookCell.y + 0.5, reveal)];
-  for (const s of spooks) ctx.scene.add(s.object);
+  const flashlight = createFlashlight(chicken.object);
 
   const rig = createCameraRig(ctx.camera);
   rig.snap(chicken.pos.x, chicken.pos.z);
   const input = createInput();
+  const progress = createProgress(store);
 
-  // --- HUD helpers -------------------------------------------------------
+  // --- State: phase + modal overlays -------------------------------------------------
+  let phase: Phase = 'title';
+  let cardsOpen = 0;
+  let cardChain: Promise<void> = Promise.resolve();
+  const setPhase = (p: Phase): void => {
+    if (canTransition(phase, p)) phase = p;
+  };
+  const card = (id: CardId, force = false): Promise<void> => {
+    if (!force && !REPEATABLE_CARDS.has(id) && !takeCard(store.get(), id)) return cardChain;
+    if (force) takeCard(store.get(), id);
+    const text = STORY_CARDS[id];
+    cardsOpen++;
+    store.emit({ type: 'story-card', cardId: id });
+    cardChain = cardChain
+      .then(() => showStoryCard(text))
+      .then(() => {
+        cardsOpen--;
+      });
+    return cardChain;
+  };
+  const shop = createShop(root, store, {
+    buy(id) {
+      const s = store.get();
+      const res = buy({ feathers: s.feathers, upgrades: s.upgrades, hats: s.hats, hat: s.hat }, id);
+      if (!res.ok) return;
+      store.set(res.wallet);
+      store.emit({ type: 'pickup', itemId: id });
+      store.emit({ type: 'feathers', amount: 0 });
+      sfx.buy();
+      applyLoadout();
+      progress.save();
+    },
+    toggleHat(id) {
+      const s = store.get();
+      store.set({ hat: toggleHat(s, id) });
+      sfx.uiClick();
+      applyLoadout();
+      progress.save();
+    },
+    onClose: () => ui.hud.sync(),
+  });
+  const pause = createPause(root, () => undefined);
+  const isModal = (): boolean =>
+    cardsOpen > 0 || shop.isOpen || pause.isOpen || phase === 'choice' || phase === 'ending';
+  const playing = (): boolean => phase === 'play' && !isModal();
+
+  // --- Helpers ---------------------------------------------------------------------
   const tmp = new THREE.Vector3();
   const toScreen = (x: number, y: number, z: number): { sx: number; sy: number } => {
     tmp.set(x, y, z).project(ctx.camera);
@@ -119,69 +205,247 @@ function boot(root: HTMLElement): void {
       sy: (-tmp.y * 0.5 + 0.5) * window.innerHeight,
     };
   };
-  const addFeathers = (amount: number, x: number, z: number): void => {
-    store.set({ feathers: store.get().feathers + amount });
-    store.emit({ type: 'feathers', amount, at: { x, y: z } });
+  const atKorb = (): boolean =>
+    Math.hypot(chicken.pos.x - korb.x, chicken.pos.z - korb.z) < KORB_REACH;
+  const teleportTo = (x: number, z: number): void => {
+    chicken.teleport(x, z);
+    rig.snap(x, z);
   };
 
+  let hatObj: THREE.Object3D | null = null;
+  /** Upgrades, hat and flashlight → entities. */
+  function applyLoadout(): void {
+    progress.applyUpgrades();
+    chicken.speedMul = progress.stats.speedMul;
+    const want = store.get().hat;
+    if (hatObj) chicken.hatAnchor.remove(hatObj);
+    hatObj = want ? createHat(want) : null;
+    if (hatObj) chicken.hatAnchor.add(hatObj);
+    ui.hud.sync();
+  }
+
+  // --- Spooks -----------------------------------------------------------------------
+  const spooks = createSpookManager(ctx.scene, reveal, wallsOnly, {
+    onCaught(s) {
+      if (!playing()) return;
+      const room = roomIdAt(chicken.pos.x, chicken.pos.z);
+      const res = progress.caught(room);
+      store.emit({ type: 'caught', by: s.state.kind });
+      store.emit({ type: 'heart-lost', by: s.state.kind });
+      store.emit({ type: 'feathers', amount: -res.lost });
+      sfx.caught();
+      rig.shake(0.35, 0.25);
+      ui.toast(T.caught, T.caughtSub(Math.round(progress.stats.lossShare * 100)));
+      if (res.lost > 0) {
+        const p = toScreen(chicken.pos.x, 1.2, chicken.pos.z);
+        ui.spawnFloat(`−${res.lost}`, p.sx, p.sy, 'danger');
+      }
+      if (res.panic) {
+        teleportTo(korb.x + 0.9, korb.z - 0.6);
+        void card('panic');
+      } else {
+        // Knock the chicken away from the spook so it can flee.
+        const dx = chicken.pos.x - s.state.x;
+        const dz = chicken.pos.z - s.state.z;
+        const len = Math.hypot(dx, dz) || 1;
+        moveAndSlide(grid, chicken.pos, (dx / len) * 1.2, (dz / len) * 1.2, 0.22);
+      }
+    },
+    onDelivered() {
+      store.set({ ghostlights: store.get().ghostlights + 1 });
+      store.emit({ type: 'ghostlight', amount: 1 });
+      sfx.combo(4);
+      ui.toast(T.ghostlight, T.ghostlightSub);
+      progress.save();
+    },
+  });
+  for (const c of cellsOfType(map, GridCell.SpookSpawn)) {
+    const room = roomIdAt(c.x, c.y);
+    spooks.spawn(room === 'kueche' ? 'rudi' : 'socke', c.x + 0.5, c.y + 0.5);
+  }
+  for (const p of SOFA_SPOTS) spooks.spawn('hand', p.x, p.z + 0.7);
+
+  // --- Sonar / lightning / missions ---------------------------------------------------
   const floorMask = { texture: house.floorMask, width: map.width, height: map.height };
+  // Late-bound: sonar hooks need missions, missions need sonar.
+  let missionsRef: ReturnType<typeof createMissions> | null = null;
   const sonar = createSonarSystem(ctx.scene, reveal, floorMask, {
     onFirstReveal(r) {
-      addFeathers(SONAR.featherBase, r.center.x, r.center.z);
+      progress.addFeathers(SONAR.featherBase, r.center.x, r.center.z);
       const p = toScreen(r.center.x, r.center.y + 0.6, r.center.z);
       ui.spawnFloat(`+${SONAR.featherBase}`, p.sx, p.sy, 'feather');
       sfx.pickup();
     },
     onCombo(count, bonus, x, z) {
-      addFeathers(bonus, x, z);
+      progress.addFeathers(bonus, x, z);
       const p = toScreen(chicken.pos.x, 1.2, chicken.pos.z);
       ui.spawnFloat(`×${count}!  +${bonus}`, p.sx, p.sy - 30, 'combo');
       sfx.combo(count);
-      if (count >= 3) ui.toast(`Combo ×${count}!`, `+${bonus} Federn`);
+      if (count >= 3) ui.toast(`×${count}!`, `+${bonus} Federn`);
     },
-    onSpookHeard(r, ox, oz) {
-      const s = spooks.find((sp) => sp.reveal === r);
-      if (s) hearSound(s.state, ox, oz);
+    onSpookHeard(r, ox, oz, echo) {
+      const s = spooks.byReveal(r);
+      if (!s || !missionsRef) return;
+      const t = ctx.clock.elapsedTime;
+      const lit =
+        !echo &&
+        missionsRef.lit(s.state.x, s.state.z, t, chicken.pos.x, chicken.pos.z, chicken.facing);
+      if (spooks.heard(s, ox, oz, lit)) ui.toast(T.peaceful, T.peacefulSub);
+    },
+    onPropHit(r, echo) {
+      missionsRef?.onPropHit(r, echo, ctx.clock.elapsedTime);
     },
   });
 
   const lightning = createLightning(ctx.scene, reveal, {
-    onFlash: () => sfx.lightningSting(),
+    onFlash: () => {
+      sfx.lightningSting();
+      missionsRef?.onFlash(ctx.clock.elapsedTime, roomIdAt(chicken.pos.x, chicken.pos.z));
+    },
     onThunder: (i) => ambience.thunder(i),
     shake: (a, t) => rig.shake(a, t),
   });
 
-  // --- Scream input ------------------------------------------------------
+  const missions = createMissions({
+    scene: ctx.scene,
+    reveal,
+    store,
+    ui,
+    sonar,
+    spooks,
+    progress,
+    flashlight,
+    grid,
+    nightLight,
+    fridgeLight: { x: fridgeCell.x + 0.5, z: fridgeCell.y + 0.5 },
+    card,
+    shake: (a, t) => rig.shake(a, t),
+    startFinale: () => startFinale(),
+  });
+  missionsRef = missions;
+
+  // --- Finale + endings ---------------------------------------------------------------
+  let choice: Choice | null = null;
+  let forcedEnding: EndingId | null = null;
+  async function startFinale(): Promise<void> {
+    if (phase !== 'play') return;
+    shop.close();
+    pause.close();
+    setPhase('finale');
+    prompt.set(null);
+    ui.hideMission();
+    flashlight.owned = false;
+    const dx = missions.door.x;
+    const dz = missions.door.z - 0.9;
+    teleportTo(dx, dz);
+    spooks.gather(dx, dz);
+    for (const s of spooks.list) reveal.hit(s.reveal);
+    for (const id of FINALE_CARDS) {
+      if (forcedEnding) break;
+      await card(id, true);
+    }
+    setPhase('choice');
+    let ending = forcedEnding;
+    if (!ending) {
+      choice = showChoice(root);
+      ending = await choice.result;
+    }
+    finish(ending);
+  }
+
+  function finish(id: EndingId): void {
+    setPhase('ending');
+    if (id === 'A') {
+      missions.door.setOpen(true);
+      sfx.scream(SONAR.maxHold);
+    } else {
+      teleportTo(korb.x, korb.z);
+      spooks.gather(korb.x, korb.z + 2.4);
+    }
+    store.emit({ type: 'ending', endingId: id });
+    progress.addXp(100);
+    const s = store.get();
+    let stars = 0;
+    for (const mid of MISSION_IDS) {
+      const room = progress.room(MISSION_ROOM[mid]);
+      stars += roomStars(room);
+    }
+    progress.save();
+    showEnding(
+      root,
+      id,
+      {
+        feathers: s.feathersEarned,
+        ghostlights: s.ghostlights,
+        stars,
+        maxStars: MISSION_IDS.length * 3,
+        rank: rankName(store.get().rank),
+        time: formatTime(s.time),
+      },
+      () => {
+        try {
+          clearSave(window.localStorage);
+        } catch {
+          // storage unavailable
+        }
+        window.location.reload();
+      },
+    );
+  }
+
+  // --- Scream input ------------------------------------------------------------------
   let holdStart = -1;
   const scream = (hold: number): void => {
-    const radius = sonar.fire(hold, chicken.pos.x, chicken.pos.z);
+    const st = progress.stats;
+    const radius = sonar.fire(hold, chicken.pos.x, chicken.pos.z, {
+      maxRadius: st.maxRadius,
+      maxHold: st.maxHold,
+    });
     store.emit({
       type: 'sonar',
       origin: { x: chicken.pos.x, y: chicken.pos.z },
-      strength: radius / SONAR.maxRadius,
+      strength: radius / st.maxRadius,
     });
+    missions.onScream(ctx.clock.elapsedTime, roomIdAt(chicken.pos.x, chicken.pos.z));
     if (hold < SONAR.tapThreshold) {
       sfx.squeak();
       chicken.kick(0.18);
     } else {
       sfx.scream(hold);
       chicken.kick(0.35);
-      rig.punch(-2.5 * sonarCharge(hold));
-      rig.shake(0.06 + 0.12 * sonarCharge(hold), 0.12);
+      rig.punch(-2.5 * sonarCharge(hold, st.maxHold));
+      rig.shake(0.06 + 0.12 * sonarCharge(hold, st.maxHold), 0.12);
     }
   };
   input.onScreamStart(() => {
-    holdStart = ctx.clock.elapsedTime;
+    if (playing()) holdStart = ctx.clock.elapsedTime;
   });
   input.onScreamEnd(() => {
     if (holdStart < 0) return;
     const hold = ctx.clock.elapsedTime - holdStart;
     holdStart = -1;
     chicken.charge = 0;
-    scream(Math.min(hold, SONAR.maxHold));
+    if (playing()) scream(Math.min(hold, progress.stats.maxHold));
   });
 
-  // --- Debug -------------------------------------------------------------
+  input.onKey((code) => {
+    if (!playing()) return;
+    if (code === 'KeyE') {
+      const it = missions.nearest(chicken.pos.x, chicken.pos.z);
+      if (it) missions.interact(it);
+      else if (atKorb()) shop.open();
+    } else if (code === 'Escape') {
+      if (atKorb()) shop.open();
+      else pause.open();
+    } else if (code === 'KeyF') {
+      if (flashlight.owned) {
+        flashlight.toggle();
+        sfx.click();
+      }
+    }
+  });
+
+  // --- Debug -------------------------------------------------------------------------
   const roomCentre = (room: string | number): { x: number; z: number } | null => {
     const r = typeof room === 'number' ? HOUSE_ROOMS[room] : HOUSE_ROOMS.find((x) => x.id === room);
     if (!r) return null;
@@ -196,30 +460,16 @@ function boot(root: HTMLElement): void {
   };
   const teleport = (room: string | number): void => {
     const c = roomCentre(room);
-    if (!c) return;
-    chicken.teleport(c.x, c.z);
-    rig.snap(c.x, c.z);
+    if (c) teleportTo(c.x, c.z);
   };
 
   let debugEl: HTMLDivElement | null = null;
-  const hearRings: THREE.Mesh[] = [];
   if (flags.debug) {
     debugEl = document.createElement('div');
     debugEl.style.cssText =
       'position:fixed;right:8px;bottom:8px;font:12px monospace;color:#9fd;' +
       'background:#000a;padding:6px 8px;border-radius:6px;white-space:pre;z-index:50';
     document.body.appendChild(debugEl);
-    const ringGeo = new THREE.RingGeometry(SPOOK.noticeRadius - 0.04, SPOOK.noticeRadius, 40);
-    ringGeo.rotateX(-Math.PI / 2);
-    for (const s of spooks) {
-      const m = new THREE.Mesh(
-        ringGeo,
-        new THREE.MeshBasicMaterial({ color: 0xff4d6d, transparent: true, opacity: 0.6 }),
-      );
-      m.position.set(s.state.x, 0.05, s.state.z);
-      hearRings.push(m);
-      ctx.scene.add(m);
-    }
     input.onKey((code) => {
       const i = ['Digit1', 'Digit2', 'Digit3', 'Digit4'].indexOf(code);
       if (i >= 0) teleport(i);
@@ -228,75 +478,132 @@ function boot(root: HTMLElement): void {
     console.info('[QUIETSCH] debug mode on: 1-4 teleport, L lightning');
   }
 
-  // --- Props (async) -----------------------------------------------------
-  // `wallsOnly` was copied before props block cells: ghosts float through furniture, not walls.
+  // --- Props (async) -----------------------------------------------------------------
   placeProps(map, house, reveal).catch((err: unknown) => {
     console.warn('[QUIETSCH] props failed to load', err);
   });
-  const r = SPOOK.radius;
-  const spookCanMove = (x: number, z: number): boolean =>
-    !isBlocked(wallsOnly, x - r, z) &&
-    !isBlocked(wallsOnly, x + r, z) &&
-    !isBlocked(wallsOnly, x, z - r) &&
-    !isBlocked(wallsOnly, x, z + r);
 
-  // --- Loop --------------------------------------------------------------
+  // --- Title -------------------------------------------------------------------------
+  let saved: GameState | null = null;
+  try {
+    saved = loadGame(window.localStorage, initialGameState());
+  } catch {
+    saved = null;
+  }
+  void showTitle(root, saved !== null).then((choiceTitle) => {
+    if (choiceTitle === 'continue' && saved) {
+      store.set(saved);
+      missions.restore();
+      applyLoadout();
+      setPhase('play');
+      ui.toast(rankName(saved.rank), `Schloss ${countLocks(saved)} von 3 offen`);
+    } else {
+      try {
+        clearSave(window.localStorage);
+      } catch {
+        // storage unavailable
+      }
+      applyLoadout();
+      setPhase('play');
+      void card('intro');
+    }
+    sfx.uiClick();
+  });
+
+  // --- Loop --------------------------------------------------------------------------
   const axis = { x: 0, z: 0 };
-  // Reused every frame: no allocations in the hot loop.
-  const spookInput: SpookInput = {
+  const frame = {
     dt: 0,
+    time: 0,
     chickenX: 0,
     chickenZ: 0,
     chickenMoving: false,
-    canMove: spookCanMove,
-    rand: Math.random,
+    hopNoise: 1,
+    active: false,
+    korbX: korb.x,
+    korbZ: korb.z,
   };
-  const korb = house.korb;
   let fpsFrames = 0;
   let fpsTime = 0;
+  const objective: Objective = { text: '', progress: 0, goal: 0 };
+  let shownText = '';
+  let shownProgress = -1;
 
   ctx.renderer.setAnimationLoop(() => {
     const dt = Math.min(ctx.clock.getDelta(), 0.1);
     ctx.renderer.info.reset();
     const time = ctx.clock.elapsedTime;
+    const active = playing();
+    const room = roomIdAt(chicken.pos.x, chicken.pos.z);
 
-    input.axis(axis);
-    if (holdStart >= 0) {
-      const hold = Math.min(time - holdStart, SONAR.maxHold);
-      chicken.charge = sonarCharge(hold);
-      sonar.preview(hold, chicken.pos.x, chicken.pos.z, time);
+    if (active) input.axis(axis);
+    else {
+      axis.x = 0;
+      axis.z = 0;
+    }
+    const maxHold = progress.stats.maxHold;
+    if (holdStart >= 0 && active) {
+      const hold = Math.min(time - holdStart, maxHold);
+      chicken.charge = sonarCharge(hold, maxHold);
+      sonar.preview(hold, chicken.pos.x, chicken.pos.z, time, progress.stats.maxRadius, maxHold);
     } else {
       sonar.preview(-1, 0, 0, time);
     }
     chicken.update(dt, axis, grid, time);
     sonar.update(dt);
 
-    let nearest = Infinity;
-    let chasing = false;
-    for (const s of spooks) {
-      spookInput.dt = dt;
-      spookInput.chickenX = chicken.pos.x;
-      spookInput.chickenZ = chicken.pos.z;
-      spookInput.chickenMoving = chicken.moving;
-      const ev = stepSpook(s.state, spookInput);
-      s.update(dt, time, chicken.pos.x, chicken.pos.z);
-      nearest = Math.min(nearest, s.dist);
-      if (s.state.mode === 'chase') chasing = true;
-      if (ev === 'caught') {
-        const hearts = Math.max(0, store.get().hearts - 1);
-        store.set({ hearts });
-        store.emit({ type: 'caught', by: 'socke' });
-        store.emit({ type: 'heart-lost', by: 'socke' });
-        sfx.caught();
-        ui.toast('Gefangen! −1 Herz', 'Zurück in den Korb.');
-        rig.shake(0.35, 0.25);
-        chicken.teleport(korb.x + 0.9, korb.z - 0.6);
-        rig.snap(chicken.pos.x, chicken.pos.z);
-      }
-    }
-    const danger = Math.min(1, Math.max(0, (8 - nearest) / 6.5) + (chasing ? 0.25 : 0));
+    frame.dt = dt;
+    frame.time = time;
+    frame.chickenX = chicken.pos.x;
+    frame.chickenZ = chicken.pos.z;
+    frame.chickenMoving = chicken.moving;
+    frame.hopNoise = progress.stats.hopNoise;
+    frame.active = active || phase === 'finale' || phase === 'choice' || phase === 'ending';
+    spooks.update(frame);
+    const danger = active
+      ? Math.min(1, Math.max(0, (8 - spooks.nearest) / 6.5) + (spooks.chasing ? 0.25 : 0))
+      : 0;
     ambience.setDanger(danger);
 
+    const korbNear = atKorb();
+    if (active) {
+      if (progress.update(dt, room, korbNear)) ui.hud.sync();
+      const near = missions.nearest(chicken.pos.x, chicken.pos.z);
+      prompt.set(near ? (PROMPT[near.def.kind] ?? null) : korbNear ? (PROMPT.korb ?? null) : null);
+
+      // Objective banner per room; hub shows door progress. Touches the DOM only on change.
+      const hasObj = missions.objective(room, objective);
+      const locks = store.get().locksOpened;
+      const text = hasObj
+        ? objective.text
+        : room === 'flur'
+          ? locks === 3
+            ? T.toDoor
+            : T.hub
+          : '';
+      const prog = hasObj ? objective.progress : locks;
+      if (text !== shownText || prog !== shownProgress) {
+        shownText = text;
+        shownProgress = prog;
+        if (text === '') ui.hideMission();
+        else ui.showMission(text, prog, hasObj ? objective.goal : 3);
+      }
+
+      const s = store.get();
+      if (s.time >= DOORBELL_AT && !s.flags.doorbell) {
+        s.flags.doorbell = true;
+        sfx.doorbell();
+        missions.door.showShadow(4.5);
+        ui.toast(T.doorbell);
+      }
+    } else if (phase !== 'play') {
+      prompt.set(null);
+    }
+    if (flashlight.update(active ? dt : 0, korbNear, time))
+      ui.toast(T.batteryEmpty, T.batteryEmptySub);
+    battery.set(flashlight.owned && phase === 'play', flashlight.battery, flashlight.on);
+
+    missions.update(dt, time);
     lightning.update(dt, chicken.pos.x, chicken.pos.z);
     reveal.update(dt);
     rig.update(dt, chicken.pos.x, chicken.pos.z, chicken.vel.x, chicken.vel.z);
@@ -305,17 +612,11 @@ function boot(root: HTMLElement): void {
     if (debugEl) {
       fpsFrames++;
       fpsTime += dt;
-      for (let i = 0; i < spooks.length; i++) {
-        const s = spooks[i];
-        const m = hearRings[i];
-        if (s && m) m.position.set(s.state.x, 0.05, s.state.z);
-      }
       if (fpsTime >= 0.5) {
-        const s0 = spooks[0];
         debugEl.textContent =
-          `fps ${Math.round(fpsFrames / fpsTime)}\n` +
-          `pos ${chicken.pos.x.toFixed(1)}, ${chicken.pos.z.toFixed(1)}\n` +
-          `spook ${s0?.state.mode ?? '-'} d=${nearest.toFixed(1)} danger=${danger.toFixed(2)}\n` +
+          `fps ${Math.round(fpsFrames / fpsTime)}  phase ${phase}\n` +
+          `pos ${chicken.pos.x.toFixed(1)}, ${chicken.pos.z.toFixed(1)} ${room ?? '-'}\n` +
+          `spook d=${spooks.nearest.toFixed(1)} danger=${danger.toFixed(2)}\n` +
           `calls ${ctx.renderer.info.render.calls}`;
         fpsFrames = 0;
         fpsTime = 0;
@@ -328,11 +629,33 @@ function boot(root: HTMLElement): void {
     get state() {
       return store.get();
     },
+    get phase() {
+      return phase;
+    },
+    get modal() {
+      return isModal();
+    },
     scene: ctx.scene,
     actions: {
-      scream: (hold) => scream(Math.max(0, Math.min(hold, SONAR.maxHold))),
+      scream: (hold) => scream(Math.max(0, Math.min(hold, progress.stats.maxHold))),
       teleport,
+      warp: (x, z) => teleportTo(x, z),
       lightning: () => lightning.strike(),
+      completeMission: (id) => missions.complete(id, true),
+      giveFeathers: (n) => progress.addFeathers(Math.max(0, Math.floor(n))),
+      openLock: (n) => missions.openLock(n),
+      openShop: () => shop.open(),
+      gotoFinale: () => {
+        for (let n = 1; n <= 3; n++) missions.openLock(n);
+        if (phase === 'title') setPhase('play');
+        void startFinale();
+      },
+      chooseEnding: (id) => {
+        if (phase !== 'finale' && phase !== 'choice') return;
+        forcedEnding = id;
+        if (choice) choice.pick(id);
+        else window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+      },
     },
   };
 }
