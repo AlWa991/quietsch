@@ -1,0 +1,8 @@
+dist
+node_modules
+pnpm-lock.yaml
+e2e/screenshots
+test-results
+playwright-report
+.claude
+docs
