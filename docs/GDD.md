@@ -121,7 +121,8 @@ Stand: 2026-10-23 · Quelle: Projektplan (Abschnitt 2), ergänzt um Steuerung un
 
 ### Balancing P2 (Ist-Stand, `src/core/economy.ts`)
 
-- Ränge (XP kumulativ): Küken 0 · Gockel 80 · Hahn 220 · Schreihals 450 · Legende 800. XP = verdiente Federn + 100 pro Mission + 100 fürs Ende.
+- Ränge (XP kumulativ, ab P5): Küken 0 · Gockel 250 · Hahn 700 · Schreihals 1400 · Legende 2400. XP = verdiente Federn + 100 pro Mission + 100 fürs Ende.
+- Federn (ab P5): 2 pro Erst-Enthüllung, Combo-Bonus 5·(n−1) pro Schrei, gedeckelt bei 40. Ein typischer Durchlauf inkl. Keller bringt rund 450–550 Federn (Test `tests/economy.test.ts`), der Shop kostet ohne Krone 590: man wählt etwa drei Dinge.
 - Mission: +50 Federn. Falsche Kiste: −10 Federn + Socken-Geist. Gefangen: −1 Herz, −30 % (Dicke Haut −15 %). 0 Herzen = Panik, Korb füllt Herzen in 10 s.
 - Upgrades: Große Lunge Radius 14→18 m, volle Ladung 1,5→1,2 s · Flinke Füße ×1,25 Tempo, Hüpfgeräusch halber Radius · Mut +1 Herz.
 - Sterne pro Raum: Mission · unter 4:00 im Raum · nie im Raum gefangen (max. 9).

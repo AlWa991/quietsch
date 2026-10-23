@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   SONAR,
   comboBonus,
-  comboMultiplier,
   crossed,
   distToRect,
   ringAlpha,
@@ -85,17 +84,12 @@ describe('distToRect', () => {
 });
 
 describe('combo', () => {
-  it('multiplier is 1 for single reveals and capped', () => {
-    expect(comboMultiplier(0)).toBe(1);
-    expect(comboMultiplier(1)).toBe(1);
-    expect(comboMultiplier(3)).toBe(3);
-    expect(comboMultiplier(50)).toBe(SONAR.maxMultiplier);
-  });
-
-  it('bonus is zero without combo and grows with count', () => {
+  it('bonus is 5 per extra reveal, zero without combo, capped at 40', () => {
+    expect(comboBonus(0)).toBe(0);
     expect(comboBonus(1)).toBe(0);
-    expect(comboBonus(2, 2)).toBe(4);
-    expect(comboBonus(3, 2)).toBe(12);
-    expect(comboBonus(4, 2)).toBeGreaterThan(comboBonus(3, 2));
+    expect(comboBonus(2)).toBe(5);
+    expect(comboBonus(3)).toBe(10);
+    expect(comboBonus(9)).toBe(40);
+    expect(comboBonus(50)).toBe(SONAR.comboCap);
   });
 });

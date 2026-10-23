@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   CATCH_LOSS,
   CATCH_LOSS_THICK_SKIN,
+  MISSION_REWARD,
   RANK_XP,
   SHOP_ITEMS,
   addXp,
@@ -16,7 +17,9 @@ import {
   toggleHat,
   type Wallet,
 } from '@/core/economy';
-import { SONAR } from '@/core/sonar';
+import { SONAR, comboBonus } from '@/core/sonar';
+import { KELLER_REWARD } from '@/core/keller';
+import { INTERACTABLES } from '@/world/house-map';
 
 const wallet = (over: Partial<Wallet> = {}): Wallet => ({
   feathers: 1000,
@@ -28,27 +31,27 @@ const wallet = (over: Partial<Wallet> = {}): Wallet => ({
 
 describe('ranks', () => {
   it('maps xp thresholds to ranks Küken..Legende', () => {
-    expect(RANK_XP).toEqual([0, 80, 220, 450, 800]);
+    expect(RANK_XP).toEqual([0, 250, 700, 1400, 2400]);
     expect(rankForXp(0)).toBe(1);
-    expect(rankForXp(79)).toBe(1);
-    expect(rankForXp(80)).toBe(2);
-    expect(rankForXp(220)).toBe(3);
-    expect(rankForXp(450)).toBe(4);
-    expect(rankForXp(800)).toBe(5);
+    expect(rankForXp(249)).toBe(1);
+    expect(rankForXp(250)).toBe(2);
+    expect(rankForXp(700)).toBe(3);
+    expect(rankForXp(1400)).toBe(4);
+    expect(rankForXp(2400)).toBe(5);
     expect(rankForXp(99999)).toBe(5);
   });
 
   it('reports progress towards the next rank and 1 at max', () => {
     expect(rankProgress(0)).toBe(0);
-    expect(rankProgress(40)).toBeCloseTo(0.5);
-    expect(rankProgress(800)).toBe(1);
+    expect(rankProgress(125)).toBeCloseTo(0.5);
+    expect(rankProgress(2400)).toBe(1);
     expect(rankProgress(5000)).toBe(1);
   });
 
   it('addXp counts rank-ups and ignores negative amounts', () => {
-    expect(addXp(70, 20)).toEqual({ xp: 90, rank: 2, ranksGained: 1 });
-    expect(addXp(0, 500)).toEqual({ xp: 500, rank: 4, ranksGained: 3 });
-    expect(addXp(100, -50)).toEqual({ xp: 100, rank: 2, ranksGained: 0 });
+    expect(addXp(240, 20)).toEqual({ xp: 260, rank: 2, ranksGained: 1 });
+    expect(addXp(0, 1500)).toEqual({ xp: 1500, rank: 4, ranksGained: 3 });
+    expect(addXp(300, -50)).toEqual({ xp: 300, rank: 2, ranksGained: 0 });
   });
 });
 
@@ -167,5 +170,62 @@ describe('shop listing', () => {
   it('keeps the Krone out of the shop until the Keller exists', () => {
     expect(SHOP_ITEMS.find((i) => i.id === 'krone')?.secret).toBe(true);
     expect(SHOP_ITEMS.filter((i) => !i.secret).map((i) => i.id)).not.toContain('krone');
+  });
+});
+
+describe('feather income of a typical run (playtest-2 #7)', () => {
+  /** Solid furniture per room from world/builder FURNITURE (rugs/cushions pay nothing). */
+  const FURNITURE_PROPS: Record<string, number> = {
+    flur: 8,
+    kinderzimmer: 8,
+    kueche: 12,
+    wohnzimmer: 13,
+    keller: 4,
+  };
+  const propsIn = (room: string): number =>
+    (FURNITURE_PROPS[room] ?? 0) + INTERACTABLES.filter((i) => i.room === room).length;
+  /**
+   * First long scream per room reveals most of it as one combo, then a few shorter screams
+   * pick up the rest. Counts are first-time reveals per scream.
+   */
+  const SCREAMS: Record<string, number[]> = {
+    flur: [7, 2, 1, 1],
+    kinderzimmer: [9, 3, 2, 1],
+    kueche: [8, 4, 2, 1],
+    wohnzimmer: [9, 3, 2, 1],
+    keller: [5, 1],
+  };
+  const income = (rooms: string[]): number => {
+    let f = 0;
+    for (const room of rooms) {
+      const screams = SCREAMS[room] ?? [];
+      expect(screams.reduce((a, b) => a + b, 0)).toBe(propsIn(room));
+      for (const n of screams) f += n * SONAR.featherBase + comboBonus(n);
+    }
+    return f;
+  };
+
+  it('a full run incl. Keller earns 450-550 feathers (shop ~590: choose ~3 items)', () => {
+    const missions = 3 * MISSION_REWARD.feathers;
+    const wrongBox = -10;
+    const total =
+      income(['flur', 'kinderzimmer', 'kueche', 'wohnzimmer', 'keller']) +
+      missions +
+      KELLER_REWARD.chestFeathers +
+      wrongBox;
+    expect(total).toBeGreaterThanOrEqual(450);
+    expect(total).toBeLessThanOrEqual(550);
+    const shop = SHOP_ITEMS.filter((i) => !i.secret).reduce((a, i) => a + i.price, 0);
+    expect(total).toBeLessThan(shop);
+  });
+
+  it('the first scream in a room is worth at most 2·n + 40', () => {
+    expect(9 * SONAR.featherBase + comboBonus(9)).toBe(58);
+    expect(comboBonus(15)).toBe(40);
+  });
+
+  it('a run ends around rank Hahn (XP = feathers + 100/mission + 100 ending)', () => {
+    const xp = 520 + 3 * MISSION_REWARD.xp + 100;
+    expect(rankForXp(xp)).toBe(3);
   });
 });

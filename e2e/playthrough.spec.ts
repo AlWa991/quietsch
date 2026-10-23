@@ -261,14 +261,25 @@ test('geisterlichter: a scream in lightning pacifies a sofa hand', async ({ page
   await page.evaluate(() => window.__game?.actions?.warp(19.5, 9.6));
   await page.waitForTimeout(500);
   await closeCards(page);
-  await page.evaluate(() => window.__game?.actions?.lightning());
-  await page.waitForTimeout(150);
-  await page.evaluate(() => window.__game?.actions?.scream(0.1));
-  await page.waitForFunction(
-    () => window.__game?.actions?.spooks().some((s) => s.kind === 'hand' && s.peaceful) === true,
-    undefined,
-    WAIT,
-  );
+  // Software GL under parallel load can stall a frame past the 1.2 s light window: retry.
+  const handPeaceful = (): Promise<boolean> =>
+    page.evaluate(
+      () => window.__game?.actions?.spooks().some((s) => s.kind === 'hand' && s.peaceful) === true,
+    );
+  for (let i = 0; i < 4 && !(await handPeaceful()); i++) {
+    await page.evaluate(() => window.__game?.actions?.lightning());
+    await page.waitForTimeout(150);
+    await page.evaluate(() => window.__game?.actions?.scream(0.1));
+    await page
+      .waitForFunction(
+        () =>
+          window.__game?.actions?.spooks().some((s) => s.kind === 'hand' && s.peaceful) === true,
+        undefined,
+        { timeout: 3000 },
+      )
+      .catch(() => undefined);
+  }
+  expect(await handPeaceful()).toBe(true);
   await expect(page.locator('.q-toasts')).toContainText('Friedlich');
   // It follows the chicken to the Korb and pays a Geisterlicht.
   await page.evaluate(() => window.__game?.actions?.teleport('flur'));

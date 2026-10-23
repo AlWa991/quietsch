@@ -3,7 +3,7 @@
 import { SONAR } from './sonar';
 
 /** Cumulative XP needed to reach each rank (index 0 = rank 1 Küken ... index 4 = rank 5 Legende). */
-export const RANK_XP = [0, 80, 220, 450, 800] as const;
+export const RANK_XP = [0, 250, 700, 1400, 2400] as const;
 export const MAX_RANK = RANK_XP.length;
 
 /** Rewards for finishing a mission. */

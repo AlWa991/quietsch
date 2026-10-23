@@ -13,8 +13,10 @@ export const SONAR = {
   fadeOut: 0.45,
   /** Base feathers per first-time prop reveal. */
   featherBase: 2,
-  /** Combo multiplier cap. */
-  maxMultiplier: 5,
+  /** Combo bonus per extra reveal in one scream: comboStep * (n - 1). */
+  comboStep: 5,
+  /** Combo bonus cap per scream. */
+  comboCap: 40,
 } as const;
 
 export function clamp(v: number, lo: number, hi: number): number {
@@ -73,12 +75,7 @@ export function distToRect(
   return Math.hypot(dx, dz);
 }
 
-/** Combo multiplier for `count` first-time reveals within one scream. */
-export function comboMultiplier(count: number): number {
-  return count <= 1 ? 1 : Math.min(count, SONAR.maxMultiplier);
-}
-
-/** Extra feathers awarded at the end of a scream on top of the per-object base feathers. */
-export function comboBonus(count: number, base: number = SONAR.featherBase): number {
-  return base * count * (comboMultiplier(count) - 1);
+/** Extra feathers at the end of a scream with `count` first-time reveals: 5·(n−1), max 40. */
+export function comboBonus(count: number): number {
+  return count <= 1 ? 0 : Math.min(SONAR.comboCap, SONAR.comboStep * (count - 1));
 }
