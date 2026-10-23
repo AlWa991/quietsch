@@ -1,6 +1,6 @@
 # SESSION_STATE – QUIETSCH!
 **Live: https://alwa991.github.io/quietsch/** (T14 done via gh-pages, Pages built; T14a Review-Fixes in 04669e4)
-Stand: 2026-10-23 · Orchestrator: Fable (Phasen-Ebene) · Phase: P2 DONE + T13 Gate-1-Fixes DONE (uncommitted auf main) → nächster Schritt Gate 1 (T12 Playtest 2 + G1 Review), dann T14 Deploy
+Stand: 2026-10-23 · Orchestrator: Fable (Phasen-Ebene) · Phase: P4 Stretch DONE (T15, T16, T19, T20 + Toast-Fix auf main, nicht deployed) → nächster Schritt Deploy durch Orchestrator, dann P5 (T21 Playtest 3, G2)
 
 ## Projekt
 3D-Browser-Game (Three.js) für 24h-Contest. Theme „It's spooky outside“, Objekt Quietschhähnchen. GDD: docs/GDD.md · Architektur: docs/ARCHITECTURE.md · Tasks: .claude/TASKBOARD.md
@@ -53,15 +53,26 @@ Stand: 2026-10-23 · Orchestrator: Fable (Phasen-Ebene) · Phase: P2 DONE + T13 
 - Worker (Sonnet) Punkte 6–7: Primitive-Props in assets.ts (`PrimKey`/`PRIM_INFO`/`buildPrim`), Bodenmuster `carpet` (Kinderzimmer) und `islands` (Wohnzimmer) in builder.ts. house-map.ts unverändert.
 - eslint ignoriert `e2e/playtest/**` (Wegwerf-Harness). Screenshots: `node e2e/playtest/fix-shots.mjs <url> [chicken,reveal,lightning,socke,rooms]`, `GPU=1` für Metal (Blitz nur mit GPU im 250-ms-Fenster fotografierbar).
 
+### P4-Entscheidungen (Stretch, Opus-Lead)
+- Map 57×38: Keller = Zeilen 32–37 unter dem Flur (x 18–23), Zugang über `H`-Zelle (19,31) in der Flur-Südwand (`GridCell.Hollow`, blockiert wie Wand bis `openPassage`: Chicken-Grid, Spuk-Grid und Sonar-Floor-Mask). Dachboden = Insel x 50–55/y 2–8, nur per Leiter-Teleport (`ATTIC_ARRIVAL`/`LADDER_ARRIVAL`). Alle Wände ab Zeile 31 (horizontal), unterhalb 31 und ab x 49 sind Cutaway 0,35 m. Keller/Dachboden: Nebel 10,5–19.
+- Keller/Dachboden-Zustand nur in `flags` (`keller:heard|open|box|chest`, `attic:collar|chest`, `card:bello`, `visit:attic`, `peace:<i>`), SAVE_VERSION bleibt 1. Keller-Props und Dachboden-Props am Ende von FURNITURE (Reveal-IDs index-basiert).
+- Hohle Wand reagiert nur auf den eigenen Schrei (nicht Echo/Köder), 3 s Cooldown; E erst nach „Hohl.“. Krone: `grantHat` + automatisch getragen, im Shop erst sichtbar wenn besessen. Keller zählt nicht zu Sternen → Ergebniszeile „Geheimnis gefunden ja/nein“.
+- `core/noise.ts`: `NoiseSource` 'scream' | 'echo' | 'bait', `LIGHT`-Bitmaske, `noiseReaction()` = einzige Hör-/Befriedungsregel. Nur 'scream' befriedet. `SpookState.peaceful` (bleibt bei settle). Sonar-Ringe tragen `source`; Köder-Ringe enthüllen ohne Federn.
+- Befriedete Spuks: Map-Spuks (Index < baseSpooks) setzen beim Abliefern `peace:<i>`, nach Reload liegen sie wieder am Korb. Finale: friedliche vorne (1,1 m), andere dahinter.
+- Köder `core/bait.ts` (alloc-frei, State in-place), fliegt über Möbel (wallsOnly), 1 Ball gleichzeitig. Halsband `core/attic.ts`: 20 s aktiv, 40 s Recharge, `SpookInput.ignore` (kein Fang/Griff, kein Hüpf-Hören, kein Lock-on; Schreie werden weiter gehört).
+- Toasts: oben mittig bei 104 px, max 3, neue oben, ältere `q-toast--old` (nur Titel, klein). HUD-Chips unten links: Batterie 16 px, Köder 64 px, Halsband 112 px.
+- Debug: `actions.spooks()`, `actions.bait()`, `window.__game.pos`; Tasten 1–6 Raum-Teleport (5 Keller, 6 Dachboden).
+- e2e Mission-1-Schritt mit Retry (Socke stieß das Hähnchen nach dem Schrei weg → war flaky).
+
 ## Kommandos
 pnpm dev · pnpm build · pnpm test · pnpm e2e · pnpm typecheck · pnpm lint · pnpm format:check · pnpm deploy
-Debug: `?debug=1` (FPS, Spuk-Hörradius, Tasten 1–4 Raum-Teleport, L = Blitz) · `?ui=1` UI-Demo · `?audio=1` Audio-Demo
+Debug: `?debug=1` (FPS, Spuk-Hörradius, Tasten 1–6 Raum-Teleport, L = Blitz) · `?ui=1` UI-Demo · `?audio=1` Audio-Demo
 E2E/Playtest-Hooks: `window.__game.{phase, modal, state}` · `actions.{scream(hold), teleport(room|index), warp(x,z), lightning(), completeMission('echo'|'jaeger'|'uhr'), giveFeathers(n), openLock(1|2|3), openShop(), gotoFinale(), chooseEnding('A'|'B')}`
 docker compose up -d --build && curl -s -o /dev/null -w "%{http_code}" localhost:8080/health   (ab T11)
 
 ## Done / Next / Blocker
-Done: P0, P1 (T04–T07), P2 (T09–T11), T13 · Next: Gate 1 (T12 Playtest 2 Opus fresh + G1 Reviewer/spec-verifier Sonnet fresh) · Blocker: keine
-Offen/bekannt: Swiftshader-FPS 10–17 (Software-GL, kein Maßstab), echte GPU noch nicht gemessen; Bundle > 500 kB (Three.js, unkritisch); 12–15-Min-Arc nicht real durchgespielt (nur e2e-Debug-Pfad + Mechanik-Skript), Balancing Federn/Preise/Sterne-Partime offen für Playtest 2; Köder „bald verfügbar“; Mehr Props (T13) → Combos ×13–×18 je Raum (+100–150 Federn), Ränge steigen sehr schnell: Combo-Bonus in Playtest 2 balancen; Toast-Stapel (bis 4) verdeckt bei vielen Events das Hähnchen; `zzfx` ungenutzt in package.json.
+Done: P0, P1 (T04–T07), P2 (T09–T11), T13, T14, P4 (T15, T16, T19, T20) · Next: Deploy (Orchestrator), P5 Playtest 3 (Opus fresh) + G2 Final-Review (Sonnet fresh) · Blocker: keine
+Offen/bekannt: Swiftshader-FPS 10–17 (Software-GL), echte GPU nicht gemessen; Bundle > 500 kB; Balancing Combo/Ränge weiter offen; Follower laufen ohne Pathfinding (rutschen an Wänden entlang, bleiben bei Teleport zurück); Keller ist vor dem Öffnen im Diorama als dunkler Raum sichtbar (per Sonar enthüllbar); Krone (gold) auf gelbem Hähnchen wenig kontrastreich; T17/T18 nicht beauftragt; `zzfx` ungenutzt in package.json (review-1 #1/#2 offen).
 
 ## Rekonstruktions-Check
 1. Protagonist? 2. Engine? 3. Was öffnet die Haustür? 4. Phase? 5. Offene Tasks?
