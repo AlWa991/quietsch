@@ -1,6 +1,6 @@
 # SESSION_STATE – QUIETSCH!
 **Live: https://alwa991.github.io/quietsch/** (T14 done via gh-pages, Pages built; T14a Review-Fixes in 04669e4)
-Stand: 2026-10-23 · Orchestrator: Fable (Phasen-Ebene) · Phase: P5 Polish & Balancing DONE (T22, Commits 5e28775..eb2567f auf main, nicht deployed) → nächster Schritt Gate 2 (G2 Final-Review, Sonnet fresh; ggf. Playtest 3), danach Deploy durch Orchestrator
+Stand: 2026-10-23 · Orchestrator: Fable (Phasen-Ebene) · Phase: P6 READY für finalen Deploy (T22b Fix-Lauf nach Playtest 3 DONE, Commits 3ac9e1c..2ee7f92 auf main, nicht deployed) → nächster Schritt T23 Deploy + Abgabetext durch Orchestrator
 
 ## Projekt
 3D-Browser-Game (Three.js) für 24h-Contest. Theme „It's spooky outside“, Objekt Quietschhähnchen. GDD: docs/GDD.md · Architektur: docs/ARCHITECTURE.md · Tasks: .claude/TASKBOARD.md
@@ -77,6 +77,15 @@ Stand: 2026-10-23 · Orchestrator: Fable (Phasen-Ebene) · Phase: P5 Polish & Ba
 - Logo: Inter 600 + `-webkit-text-stroke` (Pixelify wird nirgends mehr verwendet; Fonts liegen noch in public/fonts).
 - Commit-Trailer: Co-Authored-By Claude Opus 5.5 (Systemvorgabe der Session) statt „Fable 5.1“ aus dem Orchestrator-Briefing.
 
+### T22b-Entscheidungen (finaler Fix-Lauf, Opus-Lead)
+- Schonzeit `CATCH_GRACE` 2 s via `tickGrace(t, active ? dt : 0)` (core/spook-fsm.ts); Freeze zählt nicht mehr mit (dt = 0).
+- Socke: `alertTime` 1,2 s, `huntRadius` 2,5 m; chaseSpeed/Timeout unverändert (Socken bleiben gefährlich).
+- Keller-Socke Spawn (23,36); beim Betreten des Kellers `cooldown ≥ 3 s` für Keller-Spuks (kein Fang an der Treppe).
+- Hohle Wand: `hearHollow` ignoriert ohne Flag `lock:1` (`HOLLOW_LOCK_FLAG`); e2e öffnet Schloss 1 vorher.
+- Tutorial `peaceHint`: zusätzlich nach dem 1. Fang (nach dem Freeze, auch bei Panik → Karte nach Panik-Karte); Banner-Zeile `T.nightHint` im Flur solange 0 Geisterlichter (`showMission(..., hint)`, `.q-mission__hint`). Toasts dafür auf top 128 px.
+- HUD-Sterne-Chip `.q-chip--star` (★ n/9, `totalStars`), Update auf `mission-complete`.
+- Finale-XP Flag `xp:finale`; Hähnchen im Titel unsichtbar; Rang-Toast nur Titel; Taschenlampe 16 Intensität, Reichweite RANGE+4 (Gameplay-RANGE 7 unverändert); `ShopItem.comingSoon` entfernt; Vite `build.rolldownOptions.output.codeSplitting` Gruppe `three` (index 117 kB, three 642 kB).
+
 ## Kommandos
 pnpm dev · pnpm build · pnpm test · pnpm e2e · pnpm typecheck · pnpm lint · pnpm format:check · pnpm deploy
 Debug: `?debug=1` (FPS, Spuk-Hörradius, Tasten 1–6 Raum-Teleport, L = Blitz) · `?ui=1` UI-Demo · `?audio=1` Audio-Demo
@@ -84,8 +93,8 @@ E2E/Playtest-Hooks: `window.__game.{phase, modal, state}` · `actions.{scream(ho
 docker compose up -d --build && curl -s -o /dev/null -w "%{http_code}" localhost:8080/health   (ab T11)
 
 ## Done / Next / Blocker
-Done: P0, P1 (T04–T07), P2 (T09–T11), T13, T14, P4 (T15, T16, T19, T20), P5 T22 · Next: Gate 2 (G2 Final-Review Sonnet fresh, optional Playtest 3), dann Deploy (Orchestrator) · Blocker: keine
-Offen/bekannt: Swiftshader-FPS 10–17 (Software-GL), echte GPU nicht gemessen; Bundle > 500 kB; Laufzeit Mensch geschätzt 8–12 min (nicht gemessen, Ziel 10–14 nur mit Keller/Dachboden); Rang endet bei Hahn (Schwellen laut Spec); Taschenlampe nach Fund weiter ohne Pflichtzweck (Keller nicht dunkler gemacht); Follower ohne Pathfinding (Snap > 6 m mildert); Hand-Schreck-Hand über Wänden möglich, wenn der Schrei direkt an einer Wand fällt; T17/T18 nicht beauftragt; `zzfx` ungenutzt in package.json (review-1 #1/#2 offen).
+Done: P0, P1 (T04–T07), P2 (T09–T11), T13, T14, P4 (T15, T16, T19, T20), P5 T22, Gate 2 + Playtest 3, T22b · Next: T23 finaler Deploy + Abgabetext (Orchestrator) · Blocker: keine
+Offen/bekannt: Swiftshader-FPS 10–17 (Software-GL), echte GPU nicht gemessen; three-Chunk 642 kB (> 500-kB-Warnung, index 117 kB); Laufzeit Mensch geschätzt 8–12 min (nicht gemessen, Ziel 10–14 nur mit Keller/Dachboden); Rang endet bei Hahn (Schwellen laut Spec); Taschenlampe nach Fund weiter ohne Pflichtzweck (heller, aber Keller nicht dunkler gemacht); Follower ohne Pathfinding (Snap > 6 m mildert); Hand-Schreck-Hand über Wänden möglich, wenn der Schrei direkt an einer Wand fällt; T17/T18 nicht beauftragt; `zzfx` ungenutzt in package.json (review-1 #1/#2 offen).
 
 ## Rekonstruktions-Check
 1. Protagonist? 2. Engine? 3. Was öffnet die Haustür? 4. Phase? 5. Offene Tasks?
