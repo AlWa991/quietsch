@@ -69,7 +69,8 @@ declare global {
       phase: Phase;
       modal: boolean;
       scene: THREE.Scene;
-      actions: GameActions;
+      /** Only present with ?debug=1. */
+      actions?: GameActions;
     };
   }
 }
@@ -657,6 +658,28 @@ function boot(root: HTMLElement): void {
     }
   });
 
+  const actions: GameActions = {
+    scream: (hold) => scream(Math.max(0, Math.min(hold, progress.stats.maxHold))),
+    teleport,
+    warp: (x, z) => teleportTo(x, z),
+    lightning: () => lightning.strike(),
+    completeMission: (id) => missions.complete(id, true),
+    giveFeathers: (n) => progress.addFeathers(Math.max(0, Math.floor(n))),
+    openLock: (n) => missions.openLock(n),
+    openShop: () => shop.open(),
+    gotoFinale: () => {
+      for (let n = 1; n <= 3; n++) missions.openLock(n);
+      if (phase === 'title') setPhase('play');
+      void startFinale();
+    },
+    chooseEnding: (id) => {
+      if (phase !== 'finale' && phase !== 'choice') return;
+      forcedEnding = id;
+      if (choice) choice.pick(id);
+      else window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+    },
+  };
+
   window.__game = {
     ready: true,
     get state() {
@@ -669,26 +692,6 @@ function boot(root: HTMLElement): void {
       return isModal();
     },
     scene: ctx.scene,
-    actions: {
-      scream: (hold) => scream(Math.max(0, Math.min(hold, progress.stats.maxHold))),
-      teleport,
-      warp: (x, z) => teleportTo(x, z),
-      lightning: () => lightning.strike(),
-      completeMission: (id) => missions.complete(id, true),
-      giveFeathers: (n) => progress.addFeathers(Math.max(0, Math.floor(n))),
-      openLock: (n) => missions.openLock(n),
-      openShop: () => shop.open(),
-      gotoFinale: () => {
-        for (let n = 1; n <= 3; n++) missions.openLock(n);
-        if (phase === 'title') setPhase('play');
-        void startFinale();
-      },
-      chooseEnding: (id) => {
-        if (phase !== 'finale' && phase !== 'choice') return;
-        forcedEnding = id;
-        if (choice) choice.pick(id);
-        else window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
-      },
-    },
+    actions: params.get('debug') === '1' ? actions : undefined,
   };
 }

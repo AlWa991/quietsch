@@ -24,7 +24,7 @@ test('boots without console errors and renders the 3D view', async ({ page }) =>
 
 test('scream reveals the house (ring + outlines)', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('/');
+  await page.goto('/?debug=1');
   await page.waitForFunction(() => window.__game?.ready === true);
   // Let props load and the first frames settle.
   await page.waitForTimeout(1200);

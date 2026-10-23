@@ -65,9 +65,9 @@ test('playthrough: shop, three missions, finale, ending A', async ({ page }) => 
 
   await startPlay(page);
 
-  await page.evaluate(() => window.__game?.actions.giveFeathers(300));
+  await page.evaluate(() => window.__game?.actions?.giveFeathers(300));
   const before = await page.evaluate(() => window.__game?.state.feathers ?? -1);
-  await page.evaluate(() => window.__game?.actions.openShop());
+  await page.evaluate(() => window.__game?.actions?.openShop());
   await page.locator('.q-shop').waitFor({ state: 'visible', ...WAIT });
   await page.locator('[data-testid="shop-item-lunge"]').click();
   await page.waitForFunction(
@@ -86,11 +86,44 @@ test('playthrough: shop, three missions, finale, ending A', async ({ page }) => 
     ['jaeger', 'kueche', 2],
     ['uhr', 'wohnzimmer', 3],
   ] as const;
-  for (const [id, room, n] of missions) {
-    await page.evaluate((r) => window.__game?.actions.teleport(r), room);
+  // Mission 1 for real: scream in the Kinderzimmer, the answering box echoes, open it with E.
+  const BOX_CELLS = [
+    [13, 14],
+    [4, 19],
+    [10, 18],
+    [13, 24],
+    [3, 28],
+    [8, 29],
+  ] as const;
+  await page.evaluate(() => window.__game?.actions?.teleport('kinderzimmer'));
+  await page.waitForTimeout(600);
+  await closeCards(page);
+  await page.evaluate(() => window.__game?.actions?.warp(8.5, 21.5));
+  await page.waitForTimeout(300);
+  await page.evaluate(() => window.__game?.actions?.scream(1.5));
+  await page.waitForTimeout(2500);
+  const answer = await page.evaluate(() => window.__game?.state.missions.echo.answer ?? -1);
+  expect(answer).toBeGreaterThanOrEqual(0);
+  const cell = BOX_CELLS[answer];
+  if (!cell) throw new Error(`no box cell for answer ${answer}`);
+  await page.evaluate(([x, z]) => window.__game?.actions?.warp(x, z), [
+    cell[0] + 0.5,
+    cell[1] + 1.4,
+  ] as [number, number]);
+  await page.waitForTimeout(400);
+  await page.keyboard.press('KeyE');
+  await page.waitForFunction(() => window.__game?.state.locksOpened === 1, undefined, WAIT);
+  await page.waitForTimeout(600);
+  await closeCards(page);
+  expect(await page.evaluate(() => window.__game?.state.locksOpened ?? -1)).toBe(1);
+  await page.screenshot({ path: `${SHOT}/mission-1.png` });
+
+  // Missions 2 and 3 stay on the shortcut.
+  for (const [id, room, n] of missions.slice(1)) {
+    await page.evaluate((r) => window.__game?.actions?.teleport(r), room);
     await page.waitForTimeout(600);
     await closeCards(page);
-    await page.evaluate((m) => window.__game?.actions.completeMission(m), id);
+    await page.evaluate((m) => window.__game?.actions?.completeMission(m), id);
     await page.waitForTimeout(600);
     await closeCards(page);
     const locks = await page.evaluate(() => window.__game?.state.locksOpened ?? -1);
@@ -98,7 +131,7 @@ test('playthrough: shop, three missions, finale, ending A', async ({ page }) => 
     await page.screenshot({ path: `${SHOT}/mission-${n}.png` });
   }
 
-  await page.evaluate(() => window.__game?.actions.gotoFinale());
+  await page.evaluate(() => window.__game?.actions?.gotoFinale());
   for (let i = 0; i < 10 && !(await page.locator('.q-choice').isVisible()); i++) {
     if (await page.locator('.q-story').isVisible()) await page.keyboard.press('Enter');
     await page.waitForTimeout(500);
@@ -121,7 +154,7 @@ test('playthrough: ending B and replay returns to title', async ({ page }) => {
   await boot(page);
   await startPlay(page);
 
-  await page.evaluate(() => window.__game?.actions.gotoFinale());
+  await page.evaluate(() => window.__game?.actions?.gotoFinale());
   for (let i = 0; i < 10 && !(await page.locator('.q-choice').isVisible()); i++) {
     if (await page.locator('.q-story').isVisible()) await page.keyboard.press('Enter');
     await page.waitForTimeout(500);
@@ -142,7 +175,7 @@ test('save: progress survives a reload via Weiter', async ({ page }) => {
   await boot(page);
   await startPlay(page);
 
-  await page.evaluate(() => window.__game?.actions.completeMission('echo'));
+  await page.evaluate(() => window.__game?.actions?.completeMission('echo'));
   await page.waitForFunction(() => window.__game?.state.locksOpened === 1, undefined, WAIT);
   await closeCards(page);
   // Give the autosave a moment to flush.

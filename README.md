@@ -35,7 +35,7 @@ Das Haus ist voller Spuks, und hinter jeder Tür wartet ein anderes Rätsel: ein
 - **Three.js** und **TypeScript**, gebündelt mit **Vite**
 - Spiellogik ohne Rendering-Abhängigkeit in `src/core/`, getestet mit **Vitest**
 - End-to-End-Tests mit **Playwright**
-- Sound vollständig synthetisch per **WebAudio** (ZzFX), keine Samples
+- Sound vollständig synthetisch per **WebAudio**, keine Samples
 - 3D-Möbel aus dem **Kenney** Furniture Kit (CC0)
 - Auslieferung per **nginx-unprivileged** im Docker-Container
 

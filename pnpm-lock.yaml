@@ -11,9 +11,6 @@ importers:
       three:
         specifier: 0.186.1
         version: 0.186.1
-      zzfx:
-        specifier: 1.4.0
-        version: 1.4.0
     devDependencies:
       '@eslint/js':
         specifier: 10.0.1
@@ -1045,9 +1042,6 @@ packages:
     resolution: {integrity: sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==}
     engines: {node: '>=10'}
 
-  zzfx@1.4.0:
-    resolution: {integrity: sha512-yV/7JnIBPThWh/ZLVZLlmadms5bHQQeoWKKA+DafX4554FHypsop1BQrDHhsf2xxXweUmwjWrnpiB42uBGyGlQ==}
-
 snapshots:
 
   '@cacheable/memory@2.2.0':
@@ -1903,5 +1897,3 @@ snapshots:
   word-wrap@1.2.5: {}
 
   yocto-queue@0.1.0: {}
-
-  zzfx@1.4.0: {}

@@ -13,7 +13,6 @@
 - Inter, SIL Open Font License (OFL)
 
 ## Audio
-- ZzFX, MIT. https://github.com/KilledByAPixel/ZzFX
 - Alle Soundeffekte und Ambiente-Klänge sind synthetisch erzeugt (keine Samples).
 
 ## Tools
