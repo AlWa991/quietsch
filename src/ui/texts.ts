@@ -118,6 +118,14 @@ export const T = {
   rankUp: 'Neuer Rang!',
   bought: 'Gekauft!',
   saved: 'Gespeichert',
+  hollow: 'Hohl.',
+  hollowSub: 'Da ist etwas dahinter.',
+  kellerOpen: 'Ein Geheimgang!',
+  kellerOpenSub: 'Eine Treppe führt nach unten.',
+  crown: 'Krone gefunden!',
+  crownSub: '+3 Geisterlichter',
+  chest: 'Federtruhe!',
+  chestSub: (n: number): string => `+${n} Federn`,
 } as const;
 
 /** Prompt verbs shown as "E: <verb>". */
@@ -130,6 +138,9 @@ export const PROMPT: Record<string, string> = {
   clock: 'Uhr ansehen',
   window: 'Hinausschauen',
   frontdoor: 'Haustür',
+  hollow: 'Wand aufdrücken',
+  donation: 'Karton ansehen',
+  chest: 'Truhe öffnen',
   korb: 'Bellos Korb (Shop)',
 };
 
@@ -178,5 +189,8 @@ export const RESULTS = {
   stars: 'Sterne',
   rank: 'Rang',
   time: 'Zeit',
+  secret: 'Geheimnis gefunden',
+  yes: 'ja',
+  no: 'nein',
   replay: 'Nochmal spielen',
 } as const;

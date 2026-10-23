@@ -26,6 +26,8 @@ export enum GridCell {
   LightSource = 'L',
   /** Interactable placeholder, replaced by real objects later. */
   Interactable = 'T',
+  /** Hollow wall segment: blocks like a wall until it is opened (Keller secret). */
+  Hollow = 'H',
   Void = ' ',
 }
 

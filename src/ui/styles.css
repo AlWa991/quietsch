@@ -305,7 +305,7 @@ body {
 /* Toasts */
 .q-toasts {
   position: absolute;
-  top: 92px;
+  top: 104px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;

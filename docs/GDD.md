@@ -125,3 +125,9 @@ Stand: 2026-10-23 · Quelle: Projektplan (Abschnitt 2), ergänzt um Steuerung un
 - Mission: +50 Federn. Falsche Kiste: −10 Federn + Socken-Geist. Gefangen: −1 Herz, −30 % (Dicke Haut −15 %). 0 Herzen = Panik, Korb füllt Herzen in 10 s.
 - Upgrades: Große Lunge Radius 14→18 m, volle Ladung 1,5→1,2 s · Flinke Füße ×1,25 Tempo, Hüpfgeräusch halber Radius · Mut +1 Herz.
 - Sterne pro Raum: Mission · unter 4:00 im Raum · nie im Raum gefangen (max. 9).
+
+### Ergänzungen P4 (implementiert in `src/ui/texts.ts`)
+
+- **Keller (T16):** Hohle Wand im Flur (Südwand, links vom Korb) reagiert auf einen Schrei: Toast „Hohl.“ / „Da ist etwas dahinter.“, Klopfgeräusch, Umriss pulsiert 4×. Prompt „E: Wand aufdrücken“ → Wand versinkt, Toast „Ein Geheimgang!“ / „Eine Treppe führt nach unten.“ Im Keller: „E: Karton ansehen“ (Spendenkarton → Twist-2-Karte „Der Karton“, genau einmal) mit Toast „Krone gefunden!“ / „+3 Geisterlichter“ (Krone wird automatisch getragen und erscheint danach im Shop zum An-/Ablegen), „E: Truhe öffnen“ → „Federtruhe!“ / „+40 Federn“. Ein Socken-Geist bewacht den Keller, dunklerer Nebel.
+- **Ergebnisbildschirm:** zusätzliche Zeile „Geheimnis gefunden: ja/nein“ (Keller zählt nicht zu den Raum-Sternen).
+- **Toasts:** oben mittig unter dem Missionsbanner, max. 3 sichtbar, ältere schrumpfen auf ihre Titelzeile.

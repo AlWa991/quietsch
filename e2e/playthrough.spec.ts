@@ -106,12 +106,18 @@ test('playthrough: shop, three missions, finale, ending A', async ({ page }) => 
   expect(answer).toBeGreaterThanOrEqual(0);
   const cell = BOX_CELLS[answer];
   if (!cell) throw new Error(`no box cell for answer ${answer}`);
-  await page.evaluate(([x, z]) => window.__game?.actions?.warp(x, z), [
-    cell[0] + 0.5,
-    cell[1] + 1.4,
-  ] as [number, number]);
-  await page.waitForTimeout(400);
-  await page.keyboard.press('KeyE');
+  // Retry: a sock alerted by the scream may knock the chicken away before E lands.
+  for (let i = 0; i < 4; i++) {
+    await page.evaluate(([x, z]) => window.__game?.actions?.warp(x, z), [
+      cell[0] + 0.5,
+      cell[1] + 1.4,
+    ] as [number, number]);
+    await page.waitForTimeout(400);
+    await page.keyboard.press('KeyE');
+    await page.waitForTimeout(500);
+    if (await page.evaluate(() => window.__game?.state.locksOpened === 1)) break;
+    await closeCards(page);
+  }
   await page.waitForFunction(() => window.__game?.state.locksOpened === 1, undefined, WAIT);
   await page.waitForTimeout(600);
   await closeCards(page);
@@ -189,5 +195,59 @@ test('save: progress survives a reload via Weiter', async ({ page }) => {
   await page.waitForFunction(() => window.__game?.phase === 'play', undefined, WAIT);
   const locks = await page.evaluate(() => window.__game?.state.locksOpened ?? -1);
   expect(locks).toBe(1);
+  expect(errors).toEqual([]);
+});
+
+test('keller: hollow wall, stairs, twist 2 and Krone', async ({ page }) => {
+  const errors = collectErrors(page);
+  await boot(page);
+  await startPlay(page);
+
+  // A short squeak next to the hollow wall in the Flur: it knocks back.
+  await page.evaluate(() => window.__game?.actions?.warp(19.5, 30.2));
+  await page.waitForTimeout(400);
+  await page.evaluate(() => window.__game?.actions?.scream(0.1));
+  await page.waitForFunction(
+    () => window.__game?.state.flags['keller:heard'] === true,
+    undefined,
+    WAIT,
+  );
+  await expect(page.locator('.q-toasts')).toContainText('Hohl.');
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${SHOT}/hollow.png` });
+
+  // E opens it; walk down the stairs for real (collision must let the chicken through).
+  await page.keyboard.press('KeyE');
+  await page.waitForFunction(
+    () => window.__game?.state.flags['keller:open'] === true,
+    undefined,
+    WAIT,
+  );
+  await page.waitForTimeout(800);
+  await page.keyboard.down('KeyS');
+  await page.waitForFunction(() => (window.__game?.pos.z ?? 0) > 33, undefined, WAIT);
+  await page.keyboard.up('KeyS');
+
+  // Spendenkarton: twist 2 exactly once, Krone worn, +3 Geisterlichter.
+  for (let i = 0; i < 3; i++) {
+    await page.evaluate(() => window.__game?.actions?.warp(21.5, 34.4));
+    await page.waitForTimeout(300);
+    await page.keyboard.press('KeyE');
+    await page.waitForTimeout(500);
+    if (await page.evaluate(() => window.__game?.state.flags['keller:box'] === true)) break;
+  }
+  await page.locator('.q-story').waitFor({ state: 'visible', ...WAIT });
+  await expect(page.locator('.q-story')).toContainText('Du solltest weggegeben werden.');
+  await closeCards(page);
+  const st = await page.evaluate(() => {
+    const s = window.__game?.state;
+    return { hats: s?.hats, hat: s?.hat, lights: s?.ghostlights, card: s?.flags['card:twist2'] };
+  });
+  expect(st).toEqual({ hats: ['krone'], hat: 'krone', lights: 3, card: true });
+  await page.keyboard.press('KeyE');
+  await page.waitForTimeout(600);
+  expect(await page.locator('.q-story').isVisible()).toBe(false);
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${SHOT}/keller.png` });
   expect(errors).toEqual([]);
 });

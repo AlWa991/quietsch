@@ -270,6 +270,24 @@ export const sfx = {
     tone(bus, { type: 'sawtooth', f0: 90, f1: 45, dur: 0.5, gain: 0.3 });
   },
 
+  /** Hollow double knock: the wall answers the scream (Keller secret). */
+  knock(): void {
+    const bus = getBus();
+    if (!bus) return;
+    for (const start of [0, 0.16, 0.42]) {
+      tone(bus, { type: 'sine', f0: 190, f1: 70, start, dur: 0.22, gain: 0.45 });
+      tone(bus, { type: 'triangle', f0: 420, f1: 160, start, dur: 0.06, gain: 0.12 });
+    }
+  },
+
+  /** Heavy stone slab sliding down. */
+  slide(): void {
+    const bus = getBus();
+    if (!bus) return;
+    tone(bus, { type: 'sawtooth', f0: 70, f1: 38, dur: 1.1, gain: 0.22, attack: 0.08 });
+    tone(bus, { type: 'square', f0: 55, f1: 30, start: 0.9, dur: 0.25, gain: 0.18 });
+  },
+
   click(): void {
     const bus = getBus();
     if (!bus) return;

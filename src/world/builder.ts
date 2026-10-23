@@ -11,7 +11,7 @@ import {
   type PrimKey,
   type PropKey,
 } from './assets';
-import { SOFA_SPOTS } from './house-map';
+import { CUTAWAY_ROW, SOFA_SPOTS } from './house-map';
 
 export interface WallBox {
   x: number;
@@ -24,7 +24,7 @@ export interface WallBox {
 export const wallBoxes: WallBox[] = [];
 
 export const WALL_HEIGHT = 1.5;
-/** Outer south wall is a low cutaway so it never hides the chicken (diorama view). */
+/** South walls (house + Keller) are low cutaways so they never hide the chicken (diorama view). */
 const CUTAWAY_HEIGHT = 0.35;
 /** Max wall chunk length (cells) per revealable, so reveals travel along long walls. */
 const WALL_CHUNK = 4;
@@ -35,6 +35,7 @@ const ROOM_FLOOR: Record<string, number> = {
   kinderzimmer: 0x1a2036,
   kueche: 0x171b1c,
   wohnzimmer: 0x1e1610,
+  keller: 0x101012,
 };
 
 /** Shared materials so the lightning system can modulate window glow. */
@@ -71,6 +72,8 @@ export interface HouseBuild {
   korb: { x: number; z: number };
   /** Cells blocked for the chicken (walls + furniture), indexed y * width + x. */
   blocked: Uint8Array;
+  /** Backing data of `floorMask` (255 = floor), for opening passages at runtime. */
+  mask: Uint8Array;
 }
 
 /** Greedy wall runs: horizontal runs (len >= 2) first, leftover cells become vertical runs. */
@@ -142,6 +145,7 @@ const ROOM_PATTERN: Record<string, FloorPattern> = {
   wohnzimmer: 'islands',
   kueche: 'tiles',
   kinderzimmer: 'carpet',
+  keller: 'tiles',
 };
 
 /** Axis-aligned rect in world metres. */
@@ -439,7 +443,9 @@ export function buildHouse(map: HouseMap, reveal: RevealSystem): HouseBuild {
   const blocked = new Uint8Array(map.width * map.height);
   map.cells.forEach((row, y) =>
     row.forEach((c, x) => {
-      if (c === GridCell.Wall || c === GridCell.Void) blocked[y * map.width + x] = 1;
+      if (c === GridCell.Wall || c === GridCell.Void || c === GridCell.Hollow) {
+        blocked[y * map.width + x] = 1;
+      }
     }),
   );
 
@@ -484,6 +490,16 @@ export function buildHouse(map: HouseMap, reveal: RevealSystem): HouseBuild {
     row.forEach((c, x) => c === GridCell.Door && doorCells.push({ x, y })),
   );
   const doorFloorMat = new THREE.MeshStandardMaterial({ color: 0x241c14, roughness: 1 });
+  // Threshold under the hollow wall, visible once the panel has sunk into the floor.
+  map.cells.forEach((row, y) =>
+    row.forEach((c, x) => {
+      if (c !== GridCell.Hollow) return;
+      const f = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), doorFloorMat);
+      f.rotation.x = -Math.PI / 2;
+      f.position.set(x + 0.5, 0.001, y + 0.5);
+      group.add(f);
+    }),
+  );
   for (const d of doorCells) {
     const f = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), doorFloorMat);
     f.rotation.x = -Math.PI / 2;
@@ -508,7 +524,9 @@ export function buildHouse(map: HouseMap, reveal: RevealSystem): HouseBuild {
   const geos: THREE.BufferGeometry[] = [];
   for (const run of wallRuns(map)) {
     wallBoxes.push(run);
-    const height = run.y === map.height - 1 && run.h === 1 ? CUTAWAY_HEIGHT : WALL_HEIGHT;
+    // South wall rows and every wall of the Keller below them stay low.
+    const low = run.y > CUTAWAY_ROW || (run.y === CUTAWAY_ROW && run.h === 1);
+    const height = low ? CUTAWAY_HEIGHT : WALL_HEIGHT;
     const chunks = chunk(run);
     chunks.forEach((c, i) => {
       geos.push(boxGeo(c, height));
@@ -540,13 +558,22 @@ export function buildHouse(map: HouseMap, reveal: RevealSystem): HouseBuild {
   const maskData = new Uint8Array(map.width * map.height);
   map.cells.forEach((row, y) =>
     row.forEach((c, x) => {
-      if (c !== GridCell.Wall && c !== GridCell.Void) maskData[y * map.width + x] = 255;
+      if (c !== GridCell.Wall && c !== GridCell.Void && c !== GridCell.Hollow) {
+        maskData[y * map.width + x] = 255;
+      }
     }),
   );
   const floorMask = new THREE.DataTexture(maskData, map.width, map.height, THREE.RedFormat);
   floorMask.needsUpdate = true;
 
-  return { group, floorMask, doors, korb: { x: k.x + 0.5, z: k.y + 0.5 }, blocked };
+  return {
+    group,
+    floorMask,
+    doors,
+    korb: { x: k.x + 0.5, z: k.y + 0.5 },
+    blocked,
+    mask: maskData,
+  };
 }
 
 interface Placement {
@@ -606,6 +633,11 @@ const FURNITURE: Placement[] = [
   { key: 'floorLamp', x: 37.5, z: 2.5, rot: 0 },
   { key: 'radio', x: 10.5, z: 8.5, rot: 0 },
   ...SOFA_SPOTS.map((p) => ({ key: 'sofa' as const, x: p.x, z: p.z, rot: Math.PI })),
+  // Keller (appended last: reveal ids are index-based and saved)
+  { key: 'stairs', x: 19.5, z: 32.55, rot: 0 },
+  { key: 'crate', x: 18.55, z: 33.6, rot: 0.15 },
+  { key: 'crate', x: 23.4, z: 36.4, rot: -0.3 },
+  { key: 'crate', x: 20.5, z: 36.45, rot: 0.5 },
 ];
 
 /** Flat props the chicken may walk over. */

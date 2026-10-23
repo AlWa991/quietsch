@@ -55,6 +55,8 @@ export interface ResultStats {
   maxStars: number;
   rank: string;
   time: string;
+  /** Keller secret found (Spendenkarton opened). */
+  secret: boolean;
 }
 
 /** Ending text + mobile-game style results screen. */
@@ -80,6 +82,7 @@ export function showEnding(
     ],
     [RESULTS.rank, stats.rank],
     [RESULTS.time, stats.time],
+    [RESULTS.secret, stats.secret ? RESULTS.yes : RESULTS.no],
   ];
   rows.forEach(([label, value], i) => {
     const r = el('div', 'q-results__row');

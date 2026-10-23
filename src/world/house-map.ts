@@ -1,6 +1,10 @@
 import type { RoomDef } from '@/core/types';
 
-/** ASCII floor plan, 48x32 cells, 1 cell = 1 m. See GridCell in core/types.ts for the legend. */
+/**
+ * ASCII floor plan, 48x38 cells, 1 cell = 1 m. See GridCell in core/types.ts for the legend.
+ * Rows 0-31 are the house; rows 32-37 are the secret Keller below the Flur, reached through
+ * the hollow wall 'H' in the south wall.
+ */
 export const HOUSE_ASCII: string[] = [
   '       ##################################       ',
   '       #................T.........T.....#       ',
@@ -33,7 +37,13 @@ export const HOUSE_ASCII: string[] = [
   '#..T............#......K.......#...............#',
   '#.......T.......#..............#..............T#',
   '#...............#..........T...#...............#',
-  '################################################',
+  '###################H############################',
+  '                 #......#                       ',
+  '                 #.....T#                       ',
+  '                 #......#                       ',
+  '                 #...T..#                       ',
+  '                 #S.....#                       ',
+  '                 ########                       ',
 ];
 
 /** Room bounds in cell coordinates (interior floor only). */
@@ -42,10 +52,27 @@ export const HOUSE_ROOMS: RoomDef[] = [
   { id: 'kinderzimmer', name: 'Kinderzimmer', bounds: { x: 1, y: 12, w: 15, h: 19 } },
   { id: 'kueche', name: 'Küche', bounds: { x: 32, y: 12, w: 15, h: 19 } },
   { id: 'wohnzimmer', name: 'Wohnzimmer', bounds: { x: 8, y: 1, w: 32, h: 10 } },
+  { id: 'keller', name: 'Keller', bounds: { x: 18, y: 32, w: 6, h: 5 } },
 ];
 
+/** Horizontal wall runs on this row and below are low cutaways (diorama view from the south). */
+export const CUTAWAY_ROW = 31;
+
+/** The hollow wall cell between Flur and Keller. */
+export const HOLLOW_CELL = { x: 19, y: 31 } as const;
+
 export type InteractableKind =
-  'toybox' | 'drawing' | 'fuse' | 'drawer' | 'calendar' | 'clock' | 'window' | 'frontdoor';
+  | 'toybox'
+  | 'drawing'
+  | 'fuse'
+  | 'drawer'
+  | 'calendar'
+  | 'clock'
+  | 'window'
+  | 'frontdoor'
+  | 'hollow'
+  | 'donation'
+  | 'chest';
 
 export type WallSide = 'n' | 's' | 'e' | 'w';
 
@@ -74,6 +101,9 @@ export const INTERACTABLES: InteractableDef[] = [
   { id: 'clock', kind: 'clock', room: 'wohnzimmer', cell: { x: 24, y: 1 }, wall: 'n' },
   { id: 'window', kind: 'window', room: 'wohnzimmer', cell: { x: 34, y: 1 }, wall: 'n' },
   { id: 'frontdoor', kind: 'frontdoor', room: 'flur', cell: { x: 27, y: 30 }, wall: 's' },
+  { id: 'hollow', kind: 'hollow', room: 'flur', cell: HOLLOW_CELL },
+  { id: 'donation', kind: 'donation', room: 'keller', cell: { x: 21, y: 35 } },
+  { id: 'keller-chest', kind: 'chest', room: 'keller', cell: { x: 23, y: 33 } },
 ];
 
 /** Sofa centres in the Wohnzimmer; each hides a hand. */

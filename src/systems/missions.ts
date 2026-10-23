@@ -16,6 +16,16 @@ import {
   type MissionId,
 } from '@/core/missions';
 import { MISSION_REWARD } from '@/core/economy';
+import {
+  canOpenHollow,
+  grantHat,
+  hearHollow,
+  KELLER_FLAG,
+  KELLER_REWARD,
+  openDonation,
+  openHollow,
+  openKellerChest,
+} from '@/core/keller';
 import { countLocks, lockText, openLock, type CardId } from '@/core/story';
 import { popHand, wakeRudi } from '@/core/spook-fsm';
 import { createInteractable, INTERACT_RADIUS, type Interactable } from '@/entities/interactable';
@@ -24,7 +34,7 @@ import type { Store } from '@/ui/store';
 import type { Ui } from '@/ui/index';
 import { T } from '@/ui/texts';
 import { sfx } from '@/audio/sfx';
-import { INTERACTABLES } from '@/world/house-map';
+import { HOLLOW_CELL, INTERACTABLES } from '@/world/house-map';
 import type { CollisionGrid } from './collision';
 import type { Progress } from './progress';
 import type { SpookManager } from './spooks';
@@ -38,6 +48,8 @@ const NIGHT_LIGHT_RADIUS = 2.6;
 const FRIDGE_RADIUS = 3.2;
 /** A lightning flash lights spooks for this long (ring travel included). */
 const FLASH_LIT = 1.2;
+/** Seconds between the hollow wall's outline pulses. */
+const PULSE_GAP = 0.3;
 
 export interface MissionDeps {
   scene: THREE.Scene;
@@ -57,6 +69,10 @@ export interface MissionDeps {
   shake(amount: number, seconds: number): void;
   /** Start the finale (front door with all locks open). */
   startFinale(): void;
+  /** Unblock a wall cell for chicken, spooks and the sonar floor mask. */
+  openPassage(cellX: number, cellY: number): void;
+  /** Hat / upgrades changed outside the shop: rebuild the chicken loadout. */
+  onLoadout(): void;
 }
 
 export interface Objective {
@@ -105,6 +121,13 @@ export function createMissions(d: MissionDeps): Missions {
   const door = byId('frontdoor');
   const clock = byId('clock');
   const boxes = interactables.filter((i) => i.def.kind === 'toybox');
+  const hollow = byId('hollow');
+  const donation = byId('donation');
+  const kellerChest = byId('keller-chest');
+  let lastHollow = -10;
+  /** Remaining outline pulses of the hollow wall (one every PULSE_GAP seconds). */
+  let hollowPulses = 0;
+  let pulseIn = 0;
 
   // Fridge light island (off until the fuse is flipped).
   const fridge = new THREE.PointLight(0xcfe8ff, 0, 5.5, 1.3);
@@ -179,6 +202,16 @@ export function createMissions(d: MissionDeps): Missions {
     byId('drawing').enabled = !flags['card:drawing'];
     byId('calendar').enabled = !flags['card:calendar'];
     byId('window').enabled = !flags['card:window'];
+    const f = store.get().flags;
+    hollow.enabled = canOpenHollow(f);
+    if (f[KELLER_FLAG.open]) {
+      hollow.setOpen(true);
+      d.openPassage(HOLLOW_CELL.x, HOLLOW_CELL.y);
+    }
+    donation.enabled = !f[KELLER_FLAG.box];
+    donation.setOpen(f[KELLER_FLAG.box] === true);
+    kellerChest.enabled = !f[KELLER_FLAG.chest];
+    kellerChest.setOpen(f[KELLER_FLAG.chest] === true);
     lockLamps();
   };
 
@@ -269,6 +302,46 @@ export function createMissions(d: MissionDeps): Missions {
         case 'clock':
           ui.toast(T.clockMiss, T.clockMissSub);
           break;
+        case 'hollow':
+          if (openHollow(store.get().flags)) {
+            it.setOpen(true);
+            it.enabled = false;
+            d.openPassage(HOLLOW_CELL.x, HOLLOW_CELL.y);
+            sfx.slide();
+            d.shake(0.2, 0.9);
+            ui.toast(T.kellerOpen, T.kellerOpenSub);
+            progress.save();
+          }
+          break;
+        case 'donation': {
+          const s = store.get();
+          it.enabled = false;
+          if (!openDonation(s.flags)) break;
+          it.setOpen(true);
+          it.pulse();
+          sfx.unlock();
+          store.set({
+            ...grantHat(s.hats, KELLER_REWARD.hat),
+            ghostlights: s.ghostlights + KELLER_REWARD.ghostlights,
+          });
+          store.emit({ type: 'ghostlight', amount: KELLER_REWARD.ghostlights });
+          store.emit({ type: 'pickup', itemId: KELLER_REWARD.hat });
+          d.onLoadout();
+          ui.toast(T.crown, T.crownSub);
+          progress.save();
+          void d.card('twist2');
+          break;
+        }
+        case 'chest':
+          it.enabled = false;
+          if (!openKellerChest(store.get().flags)) break;
+          it.setOpen(true);
+          it.pulse();
+          sfx.combo(5);
+          progress.addFeathers(KELLER_REWARD.chestFeathers, it.x, it.z);
+          ui.toast(T.chest, T.chestSub(KELLER_REWARD.chestFeathers));
+          progress.save();
+          break;
         case 'frontdoor':
           if (countLocks(store.get()) === 3) d.startFinale();
           else {
@@ -279,6 +352,18 @@ export function createMissions(d: MissionDeps): Missions {
       }
     },
     onPropHit(r, echo, time) {
+      if (r === hollow.revealable) {
+        const res = hearHollow(store.get().flags, echo, time, lastHollow);
+        if (res === 'hohl') {
+          lastHollow = time;
+          hollow.enabled = canOpenHollow(store.get().flags);
+          hollowPulses = 4;
+          pulseIn = 0;
+          window.setTimeout(() => sfx.knock(), 120);
+          ui.toast(T.hollow, T.hollowSub);
+        }
+        return;
+      }
       if (echo) return;
       const ms = m();
       if (!ms.echo.done) {
@@ -360,6 +445,16 @@ export function createMissions(d: MissionDeps): Missions {
     restore: applyVisuals,
     update(dt, time) {
       for (const it of interactables) it.update(dt, time);
+      if (hollowPulses > 0) {
+        pulseIn -= dt;
+        if (pulseIn <= 0) {
+          // The outline flares up four times in a row, like the wall is knocking back.
+          hollowPulses--;
+          pulseIn = PULSE_GAP;
+          d.reveal.hit(hollow.revealable);
+          hollow.pulse();
+        }
+      }
       if (echoAt >= 0 && time >= echoAt) {
         echoAt = -1;
         lastEcho = time;

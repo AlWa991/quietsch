@@ -7,6 +7,7 @@ import { GridCell, type GameState } from './core/types';
 import { buy, roomStars, toggleHat } from './core/economy';
 import { MISSION_IDS, MISSION_ROOM, type MissionId } from './core/missions';
 import { clearSave, loadGame } from './core/save';
+import { secretFound } from './core/keller';
 import {
   canTransition,
   countLocks,
@@ -68,6 +69,8 @@ declare global {
       state: GameState;
       phase: Phase;
       modal: boolean;
+      /** Chicken position (x, z) in world metres. */
+      pos: { x: number; z: number };
       scene: THREE.Scene;
       /** Only present with ?debug=1. */
       actions?: GameActions;
@@ -336,6 +339,14 @@ function boot(root: HTMLElement): void {
     card,
     shake: (a, t) => rig.shake(a, t),
     startFinale: () => startFinale(),
+    openPassage(cx, cy) {
+      const i = cy * map.width + cx;
+      house.blocked[i] = 0;
+      wallsOnly.blocked[i] = 0;
+      house.mask[i] = 255;
+      house.floorMask.needsUpdate = true;
+    },
+    onLoadout: () => applyLoadout(),
   });
   missionsRef = missions;
 
@@ -396,6 +407,7 @@ function boot(root: HTMLElement): void {
         maxStars: MISSION_IDS.length * 3,
         rank: rankName(store.get().rank),
         time: formatTime(s.time),
+        secret: secretFound(s.flags),
       },
       () => {
         try {
@@ -486,11 +498,11 @@ function boot(root: HTMLElement): void {
       'background:#000a;padding:6px 8px;border-radius:6px;white-space:pre;z-index:50';
     document.body.appendChild(debugEl);
     input.onKey((code) => {
-      const i = ['Digit1', 'Digit2', 'Digit3', 'Digit4'].indexOf(code);
+      const i = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5'].indexOf(code);
       if (i >= 0) teleport(i);
       if (code === 'KeyL') lightning.strike();
     });
-    console.info('[QUIETSCH] debug mode on: 1-4 teleport, L lightning');
+    console.info('[QUIETSCH] debug mode on: 1-5 teleport, L lightning');
   }
 
   // --- Props (async) -----------------------------------------------------------------
@@ -551,6 +563,10 @@ function boot(root: HTMLElement): void {
   const objective: Objective = { text: '', progress: 0, goal: 0 };
   let shownText = '';
   let shownProgress = -1;
+  // The Keller swallows light: fog closes in while the chicken is down there.
+  const fog = ctx.scene.fog instanceof THREE.Fog ? ctx.scene.fog : null;
+  const FOG_HOUSE = { near: fog?.near ?? 13.5, far: fog?.far ?? 30 };
+  const FOG_KELLER = { near: 10.5, far: 19 };
 
   ctx.renderer.setAnimationLoop(() => {
     const rawDt = Math.min(ctx.clock.getDelta(), 0.1);
@@ -639,6 +655,12 @@ function boot(root: HTMLElement): void {
 
     missions.update(dt, time);
     lightning.update(dt, chicken.pos.x, chicken.pos.z);
+    if (fog) {
+      const want = room === 'keller' ? FOG_KELLER : FOG_HOUSE;
+      const k = 1 - Math.exp(-2.5 * rawDt);
+      fog.near += (want.near - fog.near) * k;
+      fog.far += (want.far - fog.far) * k;
+    }
     reveal.update(dt);
     rig.update(rawDt, chicken.pos.x, chicken.pos.z, chicken.vel.x, chicken.vel.z, grid);
     postfx.render(rawDt);
@@ -690,6 +712,9 @@ function boot(root: HTMLElement): void {
     },
     get modal() {
       return isModal();
+    },
+    get pos() {
+      return { x: chicken.pos.x, z: chicken.pos.z };
     },
     scene: ctx.scene,
     actions: params.get('debug') === '1' ? actions : undefined,

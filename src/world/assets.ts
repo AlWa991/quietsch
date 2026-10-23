@@ -177,7 +177,9 @@ export type PrimKey =
   | 'stove'
   | 'bin'
   | 'wallClock'
-  | 'stool';
+  | 'stool'
+  | 'crate'
+  | 'stairs';
 
 export interface PrimInfo {
   label: string;
@@ -200,6 +202,8 @@ export const PRIM_INFO: Record<PrimKey, PrimInfo> = {
   bin: { label: 'Mülleimer', solid: true },
   wallClock: { label: 'Küchenuhr', solid: false },
   stool: { label: 'Hocker', solid: true },
+  crate: { label: 'Umzugskartons', solid: true },
+  stairs: { label: 'Kellertreppe', solid: false },
 };
 
 export function isPrimKey(key: string): key is PrimKey {
@@ -216,6 +220,8 @@ const TOY_BLUE = 0x2a3f60;
 const TOY_GREEN = 0x244238;
 const TOY_MAUVE = 0x3d3050;
 const TOY_RED = 0x4a2a35;
+const CARDBOARD = 0x3d3226;
+const CARDBOARD_DARK = 0x30281f;
 
 /** Box with bottom-centre at (x, y, z); optional Y rotation. */
 function bx(
@@ -389,6 +395,21 @@ function primParts(key: PrimKey): THREE.BufferGeometry[] {
         bx(0.05, 0.45, 0.05, -0.14, 0, -0.1, WOOD),
         bx(0.05, 0.45, 0.05, 0.14, 0, -0.1, WOOD),
         bx(0.05, 0.45, 0.05, 0, 0, 0.15, WOOD),
+      ];
+    case 'crate':
+      // Stacked moving boxes, tape strips on top.
+      return [
+        bx(0.62, 0.42, 0.5, 0, 0, 0, CARDBOARD),
+        bx(0.5, 0.36, 0.42, 0.04, 0.42, 0.02, CARDBOARD_DARK, 0.25),
+        bx(0.08, 0.01, 0.52, 0, 0.42, 0, PALE),
+        bx(0.07, 0.01, 0.44, 0.04, 0.78, 0.02, PALE, 0.25),
+      ];
+    case 'stairs':
+      // Steps leading down from the hollow wall into the Keller (walkable, flat).
+      return [
+        bx(0.9, 0.12, 0.3, 0, 0, -0.32, STEEL),
+        bx(0.9, 0.08, 0.3, 0, 0, 0, WOOD),
+        bx(0.9, 0.04, 0.3, 0, 0, 0.32, STEEL),
       ];
   }
 }

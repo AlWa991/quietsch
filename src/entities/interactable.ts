@@ -51,6 +51,42 @@ function box(w: number, h: number, d: number, m: THREE.Material, x = 0, y = 0, z
 }
 
 /** Child drawing / calendar page, drawn once into a canvas texture. */
+/** Polaroid of the chicken on the Spendenkarton, with the shelter label. */
+function photoTexture(): THREE.CanvasTexture {
+  const c = document.createElement('canvas');
+  c.width = 128;
+  c.height = 128;
+  const g = c.getContext('2d');
+  if (g) {
+    g.fillStyle = '#e8e2d2';
+    g.fillRect(0, 0, 128, 128);
+    g.fillStyle = '#28303c';
+    g.fillRect(12, 10, 104, 84);
+    // The chicken: body, head, beak, comb.
+    g.fillStyle = '#f2c230';
+    g.beginPath();
+    g.ellipse(60, 66, 26, 18, 0, 0, Math.PI * 2);
+    g.arc(80, 42, 13, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = '#e07020';
+    g.beginPath();
+    g.moveTo(92, 42);
+    g.lineTo(102, 46);
+    g.lineTo(92, 50);
+    g.fill();
+    g.fillStyle = '#c0282d';
+    g.fillRect(74, 26, 10, 6);
+    g.fillStyle = '#111';
+    g.fillRect(82, 38, 3, 3);
+    g.fillStyle = '#7a2a2a';
+    g.font = 'bold 15px sans-serif';
+    g.fillText('SPENDE', 34, 112);
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
 function paperTexture(kind: 'drawing' | 'calendar'): THREE.CanvasTexture {
   const c = document.createElement('canvas');
   c.width = 128;
@@ -125,6 +161,8 @@ interface Parts {
   pendulum?: THREE.Object3D;
   glass?: THREE.MeshBasicMaterial;
   shadow?: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
+  /** Slides to `openY` over ~1 s when opened (hollow wall sinks into the floor). */
+  sink?: { object: THREE.Object3D; openY: number };
 }
 
 function buildKind(def: InteractableDef, group: THREE.Group): Parts {
@@ -275,6 +313,63 @@ function buildKind(def: InteractableDef, group: THREE.Group): Parts {
         openPose: (o, open) => (o.rotation.y = open ? 1.4 : 0),
       };
     }
+    case 'hollow': {
+      // Low wall panel (cutaway height) with vertical boards; sinks into the floor when opened.
+      const panel = new THREE.Group();
+      const glowMat = mat(0x34302e, 0xffb070, 0);
+      panel.add(box(0.98, 0.36, 0.96, glowMat, 0, 0.18, 0));
+      for (const bx of [-0.33, 0, 0.33]) {
+        panel.add(box(0.03, 0.3, 0.98, mat(0x241e1a), bx + 0.16, 0.18, 0));
+      }
+      group.add(panel);
+      return { glowMat, sink: { object: panel, openY: -0.42 } };
+    }
+    case 'donation': {
+      const cardboard = mat(0x6a5236, 0x6a5236, 0.08);
+      group.add(box(0.72, 0.5, 0.56, cardboard, 0, 0.25, 0));
+      const flaps = new THREE.Group();
+      flaps.position.set(0, 0.5, 0);
+      const glowMat = mat(0x6a5236, 0xffd27a, 0);
+      flaps.add(box(0.74, 0.03, 0.58, glowMat, 0, 0.015, 0));
+      group.add(flaps);
+      const photoMat = new THREE.MeshStandardMaterial({
+        map: photoTexture(),
+        emissive: 0xffffff,
+        emissiveMap: photoTexture(),
+        emissiveIntensity: 0.18,
+        roughness: 1,
+      });
+      // Photo on top and on the camera-facing side.
+      const top = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.34), photoMat);
+      top.rotation.x = -Math.PI / 2;
+      top.position.set(0.1, 0.035, 0.05);
+      top.rotation.z = 0.2;
+      flaps.add(top);
+      const side = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.3), photoMat);
+      side.position.set(-0.12, 0.26, 0.285);
+      group.add(side);
+      return {
+        moving: flaps,
+        glowMat,
+        openPose: (o, open) => (o.position.y = open ? 0.62 : 0.5),
+      };
+    }
+    case 'chest': {
+      const wood = mat(0x4a3220);
+      const trim = mat(0x8a6a30, 0x5a3a10, 0.3);
+      group.add(box(0.8, 0.4, 0.5, wood, 0, 0.2, 0));
+      group.add(box(0.84, 0.06, 0.06, trim, 0, 0.32, 0.25));
+      const hinge = new THREE.Group();
+      hinge.position.set(0, 0.4, -0.25);
+      const glowMat = mat(0x4a3220, 0xffd27a, 0);
+      hinge.add(box(0.84, 0.1, 0.52, glowMat, 0, 0.05, 0.25));
+      group.add(hinge);
+      return {
+        moving: hinge,
+        glowMat,
+        openPose: (o, open) => (o.rotation.x = open ? -1.9 : 0),
+      };
+    }
   }
 }
 
@@ -296,6 +391,7 @@ export function createInteractable(def: InteractableDef, reveal: RevealSystem): 
   let birdT = 0;
   let shadowT = 0;
   let shadowDur = 1;
+  let sinkTarget = 0;
   const self: Interactable = {
     def,
     x,
@@ -305,6 +401,7 @@ export function createInteractable(def: InteractableDef, reveal: RevealSystem): 
     enabled: true,
     setOpen(open) {
       if (parts.moving && parts.openPose) parts.openPose(parts.moving, open);
+      if (parts.sink) sinkTarget = open ? parts.sink.openY : 0;
     },
     pulse() {
       glow = 1;
@@ -336,6 +433,11 @@ export function createInteractable(def: InteractableDef, reveal: RevealSystem): 
       if (glow > 0) {
         glow = Math.max(0, glow - dt * 0.8);
         if (parts.glowMat) parts.glowMat.emissiveIntensity = glow * 2.2;
+      }
+      if (parts.sink) {
+        const o = parts.sink.object;
+        o.position.y += (sinkTarget - o.position.y) * (1 - Math.exp(-3 * dt));
+        o.visible = o.position.y > parts.sink.openY + 0.02;
       }
       if (parts.pendulum) parts.pendulum.rotation.z = Math.sin(time * 3) * 0.3;
       if (parts.bird) {
