@@ -10,7 +10,8 @@ export type CardId =
   | 'clock'
   | 'panic'
   | 'twist3'
-  | 'finale';
+  | 'finale'
+  | 'bello';
 
 export type EndingId = 'A' | 'B';
 

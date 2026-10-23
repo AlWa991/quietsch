@@ -354,6 +354,55 @@ function buildKind(def: InteractableDef, group: THREE.Group): Parts {
         openPose: (o, open) => (o.position.y = open ? 0.62 : 0.5),
       };
     }
+    case 'ladder':
+    case 'hatch': {
+      // Wooden ladder against the wall (Flur) / poking out of the floor hatch (Dachboden).
+      const wood = mat(0x5a4028);
+      const glowMat = mat(0x5a4028, 0xffd27a, 0);
+      const lean = def.kind === 'ladder' ? -0.18 : 0;
+      const ladder = new THREE.Group();
+      ladder.rotation.x = lean;
+      for (const x of [-0.24, 0.24]) ladder.add(box(0.06, 1.7, 0.06, wood, x, 0.85, 0));
+      for (let i = 0; i < 5; i++) ladder.add(box(0.48, 0.05, 0.05, glowMat, 0, 0.25 + i * 0.32, 0));
+      group.add(ladder);
+      if (def.kind === 'hatch') {
+        ladder.position.y = -0.9;
+        group.add(box(0.9, 0.04, 0.9, mat(0x0c0a08), 0, 0.02, 0));
+      }
+      return { glowMat };
+    }
+    case 'collar': {
+      // Bellos red collar with a golden tag, lying on a little rug.
+      const glowMat = mat(0xa02028, 0xff5040, 0.25);
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.045, 6, 16), glowMat);
+      ring.rotation.x = Math.PI / 2;
+      ring.position.y = 0.06;
+      const tag = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.06, 0.06, 0.02, 10),
+        mat(0xd8a830, 0xa07010, 0.5),
+      );
+      tag.position.set(0, 0.06, 0.24);
+      const rug = box(0.8, 0.02, 0.6, mat(0x3a2a40), 0, 0.01, 0);
+      const holder = new THREE.Group();
+      holder.add(ring, tag);
+      group.add(rug, holder);
+      return { glowMat, moving: holder, openPose: (o, open) => (o.visible = !open) };
+    }
+    case 'dogbed': {
+      const cloth = mat(0x4a3424);
+      const glowMat = mat(0x6a4a30, 0xffd27a, 0);
+      const bed = new THREE.Mesh(new THREE.TorusGeometry(0.36, 0.12, 6, 14), cloth);
+      bed.rotation.x = Math.PI / 2;
+      bed.position.y = 0.12;
+      group.add(bed, box(0.6, 0.06, 0.6, glowMat, 0, 0.05, 0));
+      // Scratch marks on the beam behind it.
+      for (let i = 0; i < 3; i++) {
+        const scratch = box(0.02, 0.32, 0.02, mat(0x8a7a60), -0.1 + i * 0.08, 0.7, -0.46);
+        scratch.rotation.z = 0.3;
+        group.add(scratch);
+      }
+      return { glowMat };
+    }
     case 'chest': {
       const wood = mat(0x4a3220);
       const trim = mat(0x8a6a30, 0x5a3a10, 0.3);

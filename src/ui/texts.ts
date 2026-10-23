@@ -59,6 +59,10 @@ export const STORY_CARDS: Record<CardId, StoryCardText> = {
     title: 'Die Kuckucksuhr',
     text: 'Geheimfach geöffnet. Darin: Haustürschlüssel.',
   },
+  bello: {
+    title: 'Bello war hier',
+    text: 'Eine alte Decke, Kratzspuren am Balken, Hundehaare überall. Hier oben hat sich Bello vor jedem Gewitter versteckt. Neben der Decke liegt sein Halsband.',
+  },
   panic: {
     title: 'Panik!',
     text: 'Zurück im Korb. Herzen regenerieren.',
@@ -79,6 +83,7 @@ export const TITLE = {
     ['E', 'interagieren'],
     ['F', 'Taschenlampe'],
     ['Shift', 'Köder werfen (Shop)'],
+    ['Q', 'Halsband (Dachboden)'],
     ['Esc', 'Pause / Shop im Korb'],
   ] as const,
   play: 'Spielen',
@@ -127,6 +132,18 @@ export const T = {
   crownSub: '+3 Geisterlichter',
   chest: 'Federtruhe!',
   chestSub: (n: number): string => `+${n} Federn`,
+  ladderLocked: 'Die Leiter ist zu hoch.',
+  ladderLockedSub: (stars: number, need: number): string =>
+    `${stars}/${need} Sterne – ab ${need} Sternen kommst du hoch.`,
+  attic: 'Dachboden',
+  atticSub: 'Staubig. Und ein bisschen warm.',
+  collar: 'Bellos Halsband!',
+  collarSub: 'Q: anlegen. 20 s greift dich kein Spuk an.',
+  collarOn: 'Halsband an!',
+  collarOnSub: '20 s lang greift dich keiner an.',
+  collarOff: 'Halsband ab.',
+  collarOffSub: 'In 40 s wieder bereit (Q).',
+  collarObjective: 'Halsband anlegen.',
   bait: 'Quietschball!',
   baitSub: 'Shift: werfen. Spuks laufen zum Quietschen.',
 } as const;
@@ -144,6 +161,10 @@ export const PROMPT: Record<string, string> = {
   hollow: 'Wand aufdrücken',
   donation: 'Karton ansehen',
   chest: 'Truhe öffnen',
+  ladder: 'Leiter hochklettern',
+  hatch: 'Hinunterklettern',
+  collar: 'Halsband nehmen',
+  dogbed: 'Decke ansehen',
   korb: 'Bellos Korb (Shop)',
 };
 

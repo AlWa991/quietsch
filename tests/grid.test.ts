@@ -21,7 +21,7 @@ describe('grid', () => {
 
   it('finds cells of a type in the real house map', () => {
     const house = parseHouseMap(HOUSE_ASCII, HOUSE_ROOMS);
-    expect(house.width).toBe(48);
+    expect(house.width).toBe(57);
     expect(house.height).toBe(38);
     expect(cellsOfType(house, GridCell.ChickenSpawn)).toHaveLength(1);
     expect(cellsOfType(house, GridCell.Korb)).toHaveLength(1);

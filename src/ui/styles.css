@@ -1267,3 +1267,34 @@ body {
   opacity: 1;
   box-shadow: 0 0 10px rgba(255, 210, 58, 0.6);
 }
+
+/* Bellos Halsband chip: red while worn, counts down. */
+.q-collar {
+  position: absolute;
+  left: 16px;
+  bottom: 112px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px 6px 6px;
+  border-radius: 999px;
+  background: var(--glass);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 14px;
+  user-select: none;
+}
+
+.q-collar[hidden] {
+  display: none;
+}
+
+.q-collar--on {
+  border-color: rgba(255, 80, 64, 0.7);
+  box-shadow:
+    var(--shadow),
+    0 0 14px rgba(255, 80, 64, 0.45);
+}

@@ -21,6 +21,8 @@ export interface SpookFrame {
   chickenZ: number;
   chickenMoving: boolean;
   hopNoise: number;
+  /** Bellos Halsband is on: nobody catches the chicken. */
+  ignore: boolean;
   /** FSMs run only while true; visuals always update. */
   active: boolean;
   korbX: number;
@@ -89,6 +91,7 @@ export function createSpookManager(
     canMove: wallFree,
     rand: Math.random,
     hopNoise: 1,
+    ignore: false,
   };
   let nearest = Infinity;
   let chasing = false;
@@ -159,6 +162,7 @@ export function createSpookManager(
       input.chickenZ = f.chickenZ;
       input.chickenMoving = f.chickenMoving;
       input.hopNoise = f.hopNoise;
+      input.ignore = f.ignore;
       nearest = Infinity;
       chasing = false;
       let rudiLevel = 0;

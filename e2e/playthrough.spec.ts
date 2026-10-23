@@ -322,3 +322,43 @@ test('köder: bought in the shop, Shift throws, a sock goes for the ball', async
   );
   expect(errors).toEqual([]);
 });
+
+test('dachboden: 7 stars open the ladder, Bello card, Halsband', async ({ page }) => {
+  const errors = collectErrors(page);
+  await boot(page);
+  await startPlay(page);
+
+  // Locked below 7 stars.
+  await page.evaluate(() => window.__game?.actions?.warp(27.5, 13.6));
+  await page.waitForTimeout(400);
+  await page.keyboard.press('KeyE');
+  await expect(page.locator('.q-toasts')).toContainText('Die Leiter ist zu hoch.');
+  expect(await page.evaluate(() => window.__game?.pos.x ?? 0)).toBeLessThan(40);
+
+  for (const id of ['echo', 'jaeger', 'uhr'] as const) {
+    await page.evaluate((m) => window.__game?.actions?.completeMission(m), id);
+    await page.waitForTimeout(200);
+  }
+  await closeCards(page);
+  await page.evaluate(() => window.__game?.actions?.warp(27.5, 13.6));
+  await page.waitForTimeout(400);
+  await page.keyboard.press('KeyE');
+  await page.waitForFunction(() => (window.__game?.pos.x ?? 0) > 49, undefined, WAIT);
+
+  // Bellos Decke: story card. Halsband: worn at once, HUD timer.
+  await page.evaluate(() => window.__game?.actions?.warp(51.5, 4.6));
+  await page.waitForTimeout(400);
+  await page.keyboard.press('KeyE');
+  await page.locator('.q-story').waitFor({ state: 'visible', ...WAIT });
+  await expect(page.locator('.q-story')).toContainText('Bello war hier');
+  await closeCards(page);
+  await page.evaluate(() => window.__game?.actions?.warp(54.5, 4.6));
+  await page.waitForTimeout(400);
+  await page.keyboard.press('KeyE');
+  await page.waitForFunction(() => window.__game?.state.flags['attic:collar'] === true);
+  await expect(page.locator('.q-collar')).toContainText('Halsband');
+  await expect(page.locator('.q-collar')).toHaveClass(/q-collar--on/);
+  await page.waitForTimeout(800);
+  await page.screenshot({ path: `${SHOT}/dachboden.png` });
+  expect(errors).toEqual([]);
+});

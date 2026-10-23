@@ -11,7 +11,7 @@ import {
   type PrimKey,
   type PropKey,
 } from './assets';
-import { CUTAWAY_ROW, SOFA_SPOTS } from './house-map';
+import { ATTIC_MIN_X, CUTAWAY_ROW, SOFA_SPOTS } from './house-map';
 
 export interface WallBox {
   x: number;
@@ -36,6 +36,7 @@ const ROOM_FLOOR: Record<string, number> = {
   kueche: 0x171b1c,
   wohnzimmer: 0x1e1610,
   keller: 0x101012,
+  dachboden: 0x1d1610,
 };
 
 /** Shared materials so the lightning system can modulate window glow. */
@@ -146,6 +147,7 @@ const ROOM_PATTERN: Record<string, FloorPattern> = {
   kueche: 'tiles',
   kinderzimmer: 'carpet',
   keller: 'tiles',
+  dachboden: 'planks',
 };
 
 /** Axis-aligned rect in world metres. */
@@ -524,8 +526,9 @@ export function buildHouse(map: HouseMap, reveal: RevealSystem): HouseBuild {
   const geos: THREE.BufferGeometry[] = [];
   for (const run of wallRuns(map)) {
     wallBoxes.push(run);
-    // South wall rows and every wall of the Keller below them stay low.
-    const low = run.y > CUTAWAY_ROW || (run.y === CUTAWAY_ROW && run.h === 1);
+    // South wall rows, every wall of the Keller below them and the Dachboden stay low.
+    const low =
+      run.y > CUTAWAY_ROW || (run.y === CUTAWAY_ROW && run.h === 1) || run.x >= ATTIC_MIN_X;
     const height = low ? CUTAWAY_HEIGHT : WALL_HEIGHT;
     const chunks = chunk(run);
     chunks.forEach((c, i) => {
@@ -638,6 +641,10 @@ const FURNITURE: Placement[] = [
   { key: 'crate', x: 18.55, z: 33.6, rot: 0.15 },
   { key: 'crate', x: 23.4, z: 36.4, rot: -0.3 },
   { key: 'crate', x: 20.5, z: 36.45, rot: 0.5 },
+  // Dachboden
+  { key: 'crate', x: 55.3, z: 2.6, rot: 0.2 },
+  { key: 'crate', x: 53.2, z: 8.4, rot: -0.4 },
+  { key: 'shelf', x: 52.8, z: 2.25, rot: 0 },
 ];
 
 /** Flat props the chicken may walk over. */

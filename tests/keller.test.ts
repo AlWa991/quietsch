@@ -7,7 +7,7 @@ import {
   KELLER_FLAG,
   openDonation,
   openHollow,
-  openKellerChest,
+  openOnce,
   secretFound,
   type Flags,
 } from '@/core/keller';
@@ -62,8 +62,8 @@ describe('keller: rewards', () => {
     expect(openDonation(f)).toBe(true);
     expect(openDonation(f)).toBe(false);
     expect(secretFound(f)).toBe(true);
-    expect(openKellerChest(f)).toBe(true);
-    expect(openKellerChest(f)).toBe(false);
+    expect(openOnce(f, KELLER_FLAG.chest)).toBe(true);
+    expect(openOnce(f, KELLER_FLAG.chest)).toBe(false);
   });
 
   it('grants and wears the crown without duplicates', () => {

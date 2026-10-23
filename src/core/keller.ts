@@ -53,10 +53,10 @@ export function openDonation(flags: Flags): boolean {
   return true;
 }
 
-/** Open the feather chest. Returns true exactly once. Mutates `flags`. */
-export function openKellerChest(flags: Flags): boolean {
-  if (flags[KELLER_FLAG.chest]) return false;
-  flags[KELLER_FLAG.chest] = true;
+/** One-shot container (feather chests): returns true the first time `flag` is set. */
+export function openOnce(flags: Flags, flag: string): boolean {
+  if (flags[flag]) return false;
+  flags[flag] = true;
   return true;
 }
 

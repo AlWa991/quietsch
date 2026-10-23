@@ -24,8 +24,9 @@ import {
   KELLER_REWARD,
   openDonation,
   openHollow,
-  openKellerChest,
+  openOnce,
 } from '@/core/keller';
+import { ATTIC_FLAG, ATTIC_STARS, atticUnlocked, totalStars } from '@/core/attic';
 import { countLocks, lockText, openLock, type CardId } from '@/core/story';
 import { popHand, wakeRudi } from '@/core/spook-fsm';
 import { LIGHT } from '@/core/noise';
@@ -74,6 +75,10 @@ export interface MissionDeps {
   openPassage(cellX: number, cellY: number): void;
   /** Hat / upgrades changed outside the shop: rebuild the chicken loadout. */
   onLoadout(): void;
+  /** Ladder: up into the Dachboden or back down into the Flur. */
+  climb(to: 'attic' | 'flur'): void;
+  /** Bellos Halsband picked up: put it on right away. */
+  onCollar(): void;
 }
 
 export interface Objective {
@@ -125,6 +130,9 @@ export function createMissions(d: MissionDeps): Missions {
   const hollow = byId('hollow');
   const donation = byId('donation');
   const kellerChest = byId('keller-chest');
+  const atticChest = byId('attic-chest');
+  const collar = byId('collar');
+  const dogbed = byId('dogbed');
   let lastHollow = -10;
   /** Remaining outline pulses of the hollow wall (one every PULSE_GAP seconds). */
   let hollowPulses = 0;
@@ -213,6 +221,11 @@ export function createMissions(d: MissionDeps): Missions {
     donation.setOpen(f[KELLER_FLAG.box] === true);
     kellerChest.enabled = !f[KELLER_FLAG.chest];
     kellerChest.setOpen(f[KELLER_FLAG.chest] === true);
+    atticChest.enabled = !f[ATTIC_FLAG.chest];
+    atticChest.setOpen(f[ATTIC_FLAG.chest] === true);
+    collar.enabled = !f[ATTIC_FLAG.collar];
+    collar.setOpen(f[ATTIC_FLAG.collar] === true);
+    dogbed.enabled = !f['card:bello'];
     lockLamps();
   };
 
@@ -335,13 +348,46 @@ export function createMissions(d: MissionDeps): Missions {
         }
         case 'chest':
           it.enabled = false;
-          if (!openKellerChest(store.get().flags)) break;
+          if (
+            !openOnce(store.get().flags, it === atticChest ? ATTIC_FLAG.chest : KELLER_FLAG.chest)
+          ) {
+            break;
+          }
           it.setOpen(true);
           it.pulse();
           sfx.combo(5);
           progress.addFeathers(KELLER_REWARD.chestFeathers, it.x, it.z);
           ui.toast(T.chest, T.chestSub(KELLER_REWARD.chestFeathers));
           progress.save();
+          break;
+        case 'ladder': {
+          const stars = totalStars(store.get().rooms);
+          if (atticUnlocked(stars)) {
+            sfx.click();
+            d.climb('attic');
+          } else {
+            sfx.wrong();
+            ui.toast(T.ladderLocked, T.ladderLockedSub(stars, ATTIC_STARS));
+          }
+          break;
+        }
+        case 'hatch':
+          sfx.click();
+          d.climb('flur');
+          break;
+        case 'collar':
+          if (!openOnce(store.get().flags, ATTIC_FLAG.collar)) break;
+          it.enabled = false;
+          it.setOpen(true);
+          sfx.unlock();
+          ui.toast(T.collar, T.collarSub);
+          progress.save();
+          d.onCollar();
+          break;
+        case 'dogbed':
+          it.enabled = false;
+          it.pulse();
+          void d.card('bello');
           break;
         case 'frontdoor':
           if (countLocks(store.get()) === 3) d.startFinale();

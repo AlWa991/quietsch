@@ -4,8 +4,8 @@ import { readDebugFlags } from './debug';
 import { cellsOfType, parseHouseMap } from './core/grid';
 import { SONAR, sonarCharge } from './core/sonar';
 import { GridCell, type GameState } from './core/types';
-import { buy, roomStars, toggleHat } from './core/economy';
-import { MISSION_IDS, MISSION_ROOM, type MissionId } from './core/missions';
+import { buy, toggleHat } from './core/economy';
+import { MISSION_IDS, type MissionId } from './core/missions';
 import { clearSave, loadGame } from './core/save';
 import { secretFound } from './core/keller';
 import { peacefulCount } from './core/noise';
@@ -29,10 +29,18 @@ import { showStoryCard } from './ui/story-card';
 import { showTitle } from './ui/title';
 import { createPause, createShop } from './ui/shop';
 import { showChoice, showEnding, type Choice } from './ui/results';
-import { createBaitHud, createBattery, createPrompt } from './ui/prompt';
+import { createBaitHud, createBattery, createCollarHud, createPrompt } from './ui/prompt';
+import { ATTIC_FLAG, createCollar, stepCollar, totalStars, wearCollar } from './core/attic';
 import { PROMPT, rankName, STORY_CARDS, T } from './ui/texts';
 import { buildHouse, placeProps } from './world/builder';
-import { HOUSE_ASCII, HOUSE_ROOMS, roomIdAt, SOFA_SPOTS } from './world/house-map';
+import {
+  ATTIC_ARRIVAL,
+  HOUSE_ASCII,
+  HOUSE_ROOMS,
+  LADDER_ARRIVAL,
+  roomIdAt,
+  SOFA_SPOTS,
+} from './world/house-map';
 import { createChickenEntity } from './entities/chicken';
 import { createHat } from './entities/hats';
 import { createCameraRig } from './systems/camera';
@@ -123,6 +131,13 @@ function boot(root: HTMLElement): void {
   const prompt = createPrompt(root);
   const battery = createBattery(root);
   const baitHud = createBaitHud(root);
+  const collarHud = createCollarHud(root);
+  const collar = createCollar();
+  const putOnCollar = (): void => {
+    if (!wearCollar(collar, store.get().flags[ATTIC_FLAG.collar] === true)) return;
+    sfx.peaceful();
+    ui.toast(T.collarOn, T.collarOnSub);
+  };
 
   installAudioUnlock();
   const ambience = createAmbience();
@@ -382,6 +397,16 @@ function boot(root: HTMLElement): void {
       house.floorMask.needsUpdate = true;
     },
     onLoadout: () => applyLoadout(),
+    climb(to) {
+      const p = to === 'attic' ? ATTIC_ARRIVAL : LADDER_ARRIVAL;
+      teleportTo(p.x, p.z);
+      rig.shake(0.08, 0.2);
+      if (to === 'attic' && !store.get().flags['visit:attic']) {
+        store.get().flags['visit:attic'] = true;
+        ui.toast(T.attic, T.atticSub);
+      }
+    },
+    onCollar: putOnCollar,
   });
   missionsRef = missions;
 
@@ -426,11 +451,7 @@ function boot(root: HTMLElement): void {
     store.emit({ type: 'ending', endingId: id });
     progress.addXp(100);
     const s = store.get();
-    let stars = 0;
-    for (const mid of MISSION_IDS) {
-      const room = progress.room(MISSION_ROOM[mid]);
-      stars += roomStars(room);
-    }
+    const stars = totalStars(s.rooms);
     progress.save();
     showEnding(
       root,
@@ -508,6 +529,8 @@ function boot(root: HTMLElement): void {
         sfx.toss();
         chicken.kick(0.12);
       }
+    } else if (code === 'KeyQ') {
+      putOnCollar();
     } else if (code === 'KeyF') {
       if (flashlight.owned) {
         flashlight.toggle();
@@ -542,11 +565,11 @@ function boot(root: HTMLElement): void {
       'background:#000a;padding:6px 8px;border-radius:6px;white-space:pre;z-index:50';
     document.body.appendChild(debugEl);
     input.onKey((code) => {
-      const i = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5'].indexOf(code);
+      const i = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6'].indexOf(code);
       if (i >= 0) teleport(i);
       if (code === 'KeyL') lightning.strike();
     });
-    console.info('[QUIETSCH] debug mode on: 1-5 teleport, L lightning');
+    console.info('[QUIETSCH] debug mode on: 1-6 teleport, L lightning');
   }
 
   // --- Props (async) -----------------------------------------------------------------
@@ -601,6 +624,7 @@ function boot(root: HTMLElement): void {
     chickenZ: 0,
     chickenMoving: false,
     hopNoise: 1,
+    ignore: false,
     active: false,
     korbX: korb.x,
     korbZ: korb.z,
@@ -654,6 +678,13 @@ function boot(root: HTMLElement): void {
     frame.chickenZ = chicken.pos.z;
     frame.chickenMoving = chicken.moving;
     frame.hopNoise = progress.stats.hopNoise;
+    if (stepCollar(collar, active ? dt : 0)) ui.toast(T.collarOff, T.collarOffSub);
+    frame.ignore = collar.active > 0;
+    collarHud.set(
+      phase === 'play' && store.get().flags[ATTIC_FLAG.collar] === true,
+      collar.active,
+      collar.cooldown,
+    );
     frame.active =
       dt > 0 && (active || phase === 'finale' || phase === 'choice' || phase === 'ending');
     spooks.update(frame);
@@ -669,7 +700,13 @@ function boot(root: HTMLElement): void {
       prompt.set(near ? (PROMPT[near.def.kind] ?? null) : korbNear ? (PROMPT.korb ?? null) : null);
 
       // Objective banner per room; hub shows door progress. Touches the DOM only on change.
-      const hasObj = missions.objective(room, objective);
+      let hasObj = missions.objective(room, objective);
+      if (!hasObj && room === 'dachboden' && !store.get().flags[ATTIC_FLAG.collar]) {
+        objective.text = T.collarObjective;
+        objective.progress = 0;
+        objective.goal = 1;
+        hasObj = true;
+      }
       const locks = store.get().locksOpened;
       const text = hasObj
         ? objective.text
@@ -709,7 +746,7 @@ function boot(root: HTMLElement): void {
     baitHud.set(phase === 'play' && (store.get().upgrades.koeder ?? 0) > 0, bait.ready);
     lightning.update(dt, chicken.pos.x, chicken.pos.z);
     if (fog) {
-      const want = room === 'keller' ? FOG_KELLER : FOG_HOUSE;
+      const want = room === 'keller' || room === 'dachboden' ? FOG_KELLER : FOG_HOUSE;
       const k = 1 - Math.exp(-2.5 * rawDt);
       fog.near += (want.near - fog.near) * k;
       fog.far += (want.far - fog.far) * k;

@@ -83,3 +83,34 @@ export function createBaitHud(root: HTMLElement): BaitHud {
     },
   };
 }
+
+export interface CollarHud {
+  set(visible: boolean, active: number, cooldown: number): void;
+}
+
+/** Bellos Halsband chip (bottom left, above the Köder): Q + countdown while worn / recharging. */
+export function createCollarHud(root: HTMLElement): CollarHud {
+  const node = el('div', 'q-collar');
+  const key = el('span', 'q-prompt__key', 'Q');
+  const label = el('span', 'q-collar__label');
+  node.append(key, label);
+  node.hidden = true;
+  root.append(node);
+  let last = '';
+  return {
+    set(visible, active, cooldown) {
+      const text = !visible
+        ? ''
+        : active > 0
+          ? `Halsband ${Math.ceil(active)} s`
+          : cooldown > 0
+            ? `bereit in ${Math.ceil(cooldown)} s`
+            : 'Halsband bereit';
+      if (text === last) return;
+      last = text;
+      node.hidden = !visible;
+      label.textContent = text;
+      node.classList.toggle('q-collar--on', active > 0);
+    },
+  };
+}

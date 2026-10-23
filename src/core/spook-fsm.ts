@@ -43,6 +43,8 @@ export interface SpookInput {
   rand: () => number;
   /** Multiplier on hop hearing distance (Flinke Füße = 0.5). Default 1. */
   hopNoise?: number;
+  /** Bellos Halsband: spooks neither catch, grab nor notice the chicken itself. */
+  ignore?: boolean;
 }
 
 export const SPOOK = {
@@ -242,7 +244,7 @@ function stepRudi(s: SpookState, input: SpookInput): SpookEvent {
   if (s.mode === 'dormant') return null;
   s.noiseAge += dt;
   const toChicken = Math.hypot(input.chickenX - s.x, input.chickenZ - s.z);
-  if (s.cooldown === 0 && toChicken <= SPOOK.catchRadius) {
+  if (!input.ignore && s.cooldown === 0 && toChicken <= SPOOK.catchRadius) {
     s.mode = 'return';
     s.cooldown = RUDI.catchCooldown;
     s.noiseAge = Infinity;
@@ -250,7 +252,7 @@ function stepRudi(s: SpookState, input: SpookInput): SpookEvent {
   }
   const hear =
     (s.mode === 'chase' ? RUDI.alertedHearRadius : RUDI.hearRadius) * (input.hopNoise ?? 1);
-  if (input.chickenMoving && toChicken <= hear && s.cooldown === 0) {
+  if (!input.ignore && input.chickenMoving && toChicken <= hear && s.cooldown === 0) {
     hearSound(s, input.chickenX, input.chickenZ);
   }
   switch (s.mode) {
@@ -277,7 +279,7 @@ function stepHand(s: SpookState, input: SpookInput): SpookEvent {
   s.heading = Math.atan2(input.chickenX - s.x, input.chickenZ - s.z);
   switch (s.mode) {
     case 'wander':
-      if (s.cooldown === 0 && toChicken <= HAND.grabRadius) {
+      if (!input.ignore && s.cooldown === 0 && toChicken <= HAND.grabRadius) {
         s.mode = 'alert';
         s.timer = HAND.emergeTime;
         s.scare = false;
@@ -288,7 +290,7 @@ function stepHand(s: SpookState, input: SpookInput): SpookEvent {
       if (s.timer <= 0) {
         s.mode = 'chase';
         s.timer = HAND.grabTime;
-        if (!s.scare && toChicken <= HAND.grabRadius) {
+        if (!s.scare && !input.ignore && toChicken <= HAND.grabRadius) {
           s.cooldown = HAND.cooldown + HAND.grabTime;
           return 'caught';
         }
@@ -318,13 +320,14 @@ function stepSocke(s: SpookState, input: SpookInput): SpookEvent {
   s.cooldown = Math.max(0, s.cooldown - dt);
   const toChicken = Math.hypot(input.chickenX - s.x, input.chickenZ - s.z);
 
-  if (s.cooldown === 0 && toChicken <= SPOOK.catchRadius) {
+  if (!input.ignore && s.cooldown === 0 && toChicken <= SPOOK.catchRadius) {
     s.mode = 'return';
     s.cooldown = SPOOK.catchCooldown;
     return 'caught';
   }
 
   if (
+    !input.ignore &&
     input.chickenMoving &&
     toChicken <= SPOOK.noticeRadius * (input.hopNoise ?? 1) &&
     (s.mode === 'wander' || s.mode === 'return')
@@ -348,7 +351,7 @@ function stepSocke(s: SpookState, input: SpookInput): SpookEvent {
       break;
     case 'chase': {
       s.timer -= dt;
-      if (toChicken <= SPOOK.huntRadius) {
+      if (!input.ignore && toChicken <= SPOOK.huntRadius) {
         s.targetX = input.chickenX;
         s.targetZ = input.chickenZ;
       }
