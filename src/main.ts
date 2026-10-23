@@ -12,6 +12,7 @@ import { peacefulCount } from './core/noise';
 import {
   canTransition,
   countLocks,
+  doorbellDue,
   FINALE_CARDS,
   formatTime,
   REPEATABLE_CARDS,
@@ -103,8 +104,6 @@ declare global {
   }
 }
 
-/** Scripted doorbell scare after this much play time (s). */
-const DOORBELL_AT = 300;
 const KORB_REACH = 1.6;
 
 const params = new URLSearchParams(window.location.search);
@@ -730,7 +729,7 @@ function boot(root: HTMLElement): void {
       }
 
       const s = store.get();
-      if (s.time >= DOORBELL_AT && !s.flags.doorbell) {
+      if (doorbellDue(s.time, locks, s.flags.doorbell === true)) {
         s.flags.doorbell = true;
         sfx.doorbell();
         missions.door.showShadow(4.5);
@@ -750,6 +749,7 @@ function boot(root: HTMLElement): void {
       sfx.echo(0);
     }
     baitHud.set(phase === 'play' && (store.get().upgrades.koeder ?? 0) > 0, bait.ready);
+    lightning.fast = room === 'wohnzimmer' && !store.get().missions.uhr.done;
     lightning.update(dt, chicken.pos.x, chicken.pos.z);
     if (fog) {
       const want = room === 'keller' || room === 'dachboden' ? FOG_KELLER : FOG_HOUSE;

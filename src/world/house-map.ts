@@ -98,6 +98,8 @@ export interface InteractableDef {
   wall?: WallSide;
   /** Toy box index 0..5 (Echo-Rätsel). */
   index?: number;
+  /** Interaction reach in metres (default INTERACT_RADIUS). */
+  reach?: number;
 }
 
 export const INTERACTABLES: InteractableDef[] = [
@@ -113,7 +115,14 @@ export const INTERACTABLES: InteractableDef[] = [
   { id: 'calendar', kind: 'calendar', room: 'kueche', cell: { x: 32, y: 25 }, wall: 'w' },
   { id: 'clock', kind: 'clock', room: 'wohnzimmer', cell: { x: 24, y: 1 }, wall: 'n' },
   { id: 'window', kind: 'window', room: 'wohnzimmer', cell: { x: 34, y: 1 }, wall: 'n' },
-  { id: 'frontdoor', kind: 'frontdoor', room: 'flur', cell: { x: 27, y: 30 }, wall: 's' },
+  {
+    id: 'frontdoor',
+    kind: 'frontdoor',
+    room: 'flur',
+    cell: { x: 27, y: 30 },
+    wall: 's',
+    reach: 2.6,
+  },
   { id: 'hollow', kind: 'hollow', room: 'flur', cell: HOLLOW_CELL },
   { id: 'donation', kind: 'donation', room: 'keller', cell: { x: 21, y: 35 } },
   { id: 'keller-chest', kind: 'chest', room: 'keller', cell: { x: 23, y: 33 } },

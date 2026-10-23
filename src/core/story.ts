@@ -95,3 +95,10 @@ export function formatTime(seconds: number): string {
   const s = Math.max(0, Math.floor(seconds));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
+
+/** Scripted doorbell scare: after this much play time or when the 2nd lock opens. */
+export const DOORBELL = { at: 120, locks: 2 } as const;
+
+export function doorbellDue(playSeconds: number, locks: number, rung: boolean): boolean {
+  return !rung && (playSeconds >= DOORBELL.at || locks >= DOORBELL.locks);
+}

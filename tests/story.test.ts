@@ -3,6 +3,7 @@ import {
   FINALE_CARDS,
   canOpenDoor,
   canTransition,
+  doorbellDue,
   countLocks,
   endingFor,
   formatTime,
@@ -80,5 +81,14 @@ describe('endings and phases', () => {
     expect(formatTime(65.9)).toBe('1:05');
     expect(formatTime(600)).toBe('10:00');
     expect(formatTime(-5)).toBe('0:00');
+  });
+});
+
+describe('doorbell', () => {
+  it('rings once at 120 s or with the 2nd lock, whichever comes first', () => {
+    expect(doorbellDue(119, 1, false)).toBe(false);
+    expect(doorbellDue(120, 0, false)).toBe(true);
+    expect(doorbellDue(30, 2, false)).toBe(true);
+    expect(doorbellDue(500, 3, true)).toBe(false);
   });
 });

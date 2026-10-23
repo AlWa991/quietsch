@@ -5,6 +5,9 @@ import { WINDOW_BASE, WINDOW_SPOTS, windowMaterial } from '@/world/builder';
 
 const MIN_GAP = 15;
 const MAX_GAP = 25;
+/** Storm rhythm while the Kuckucksuhr mission waits for flashes (Wohnzimmer). */
+const FAST_MIN_GAP = 8;
+const FAST_MAX_GAP = 12;
 /** Strike length (s): full-screen wash with a double flicker, then window light fades. */
 const FLASH = 0.25;
 /** Window light patches on the floor linger a bit after the wash. */
@@ -26,6 +29,8 @@ export interface LightningSystem {
   update(dt: number, cx: number, cz: number): void;
   /** Trigger a strike now (debug / e2e). */
   strike(): void;
+  /** Faster storm (8–12 s) while the clock mission needs flashes. */
+  fast: boolean;
 }
 
 export function createLightning(
@@ -72,14 +77,19 @@ export function createLightning(
   let revealedThisFlash = false;
 
   const schedule = (): void => {
-    next = MIN_GAP + Math.random() * (MAX_GAP - MIN_GAP);
+    next = self.fast
+      ? FAST_MIN_GAP + Math.random() * (FAST_MAX_GAP - FAST_MIN_GAP)
+      : MIN_GAP + Math.random() * (MAX_GAP - MIN_GAP);
   };
 
-  return {
+  const self: LightningSystem = {
+    fast: false,
     strike() {
       pendingStrike = true;
     },
     update(dt, cx, cz) {
+      // Entering the fast storm never waits longer than a fast gap.
+      if (self.fast && next > FAST_MAX_GAP) next = FAST_MIN_GAP;
       next -= dt;
       if (next <= 0 || pendingStrike) {
         pendingStrike = false;
@@ -132,6 +142,7 @@ export function createLightning(
       }
     },
   };
+  return self;
 }
 
 /**

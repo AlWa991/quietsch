@@ -234,11 +234,11 @@ export function createMissions(d: MissionDeps): Missions {
     door,
     nearest(x, z) {
       let best: Interactable | null = null;
-      let bestD = INTERACT_RADIUS;
+      let bestD = Infinity;
       for (const it of interactables) {
         if (!it.enabled) continue;
         const dist = Math.hypot(it.x - x, it.z - z);
-        if (dist <= bestD) {
+        if (dist <= (it.def.reach ?? INTERACT_RADIUS) && dist < bestD) {
           bestD = dist;
           best = it;
         }
