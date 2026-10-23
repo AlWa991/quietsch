@@ -29,6 +29,8 @@ export interface SpookState {
   scare: boolean;
   /** Pacified by a scream in light; stays true through settle (finale, Korb). */
   peaceful: boolean;
+  /** Rudi: seconds left of the wake-up flicker after power-on (deaf and still meanwhile). */
+  wake: number;
 }
 
 export interface SpookInput {
@@ -70,7 +72,10 @@ export const SPOOK = {
 } as const;
 
 export const RUDI = {
-  speed: 3.6,
+  /** Slower than the chicken (3.2 m/s): a straight escape works, hesitation does not. */
+  speed: 3.0,
+  /** Wake-up flicker after power-on before Rudi hears or drives. */
+  wakeTime: 1.5,
   /** Hop hearing distance while dormant-awake / idle. */
   hearRadius: 5,
   /** Once alerted, Rudi hears every hop within this distance (the whole kitchen). */
@@ -114,6 +119,7 @@ export function createSpook(x: number, z: number, kind: SpookKind = 'socke'): Sp
     noiseAge: Infinity,
     scare: false,
     peaceful: false,
+    wake: 0,
   };
 }
 
@@ -121,7 +127,7 @@ const isPeaceful = (s: SpookState): boolean => s.mode === 'follow' || s.mode ===
 
 /** Sonar heard (ring passed the spook). Starts or redirects a chase towards the sound origin. */
 export function hearSound(s: SpookState, originX: number, originZ: number): void {
-  if (s.kind === 'hand' || isPeaceful(s) || s.mode === 'dormant') return;
+  if (s.kind === 'hand' || isPeaceful(s) || s.mode === 'dormant' || s.wake > 0) return;
   if (s.kind === 'rudi') {
     s.targetX = originX;
     s.targetZ = originZ;
@@ -187,7 +193,9 @@ function pickWanderTarget(s: SpookState, input: SpookInput): void {
 
 /** Rudi wakes up (power on). */
 export function wakeRudi(s: SpookState): void {
-  if (s.mode === 'dormant') s.mode = 'wander';
+  if (s.mode !== 'dormant') return;
+  s.mode = 'wander';
+  s.wake = RUDI.wakeTime;
 }
 
 /** Scripted scare: the hand bursts out without being able to catch. */
@@ -242,6 +250,10 @@ function stepRudi(s: SpookState, input: SpookInput): SpookEvent {
   const { dt } = input;
   s.cooldown = Math.max(0, s.cooldown - dt);
   if (s.mode === 'dormant') return null;
+  if (s.wake > 0) {
+    s.wake = Math.max(0, s.wake - dt);
+    return null;
+  }
   s.noiseAge += dt;
   const toChicken = Math.hypot(input.chickenX - s.x, input.chickenZ - s.z);
   if (!input.ignore && s.cooldown === 0 && toChicken <= SPOOK.catchRadius) {

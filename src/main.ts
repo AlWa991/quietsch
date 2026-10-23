@@ -265,11 +265,15 @@ function boot(root: HTMLElement): void {
   // --- Spooks -----------------------------------------------------------------------
   /** Catch freeze-frame (s): simulation paused, camera close-up, then `afterFreeze`. */
   const FREEZE = 0.5;
+  /** Grace period after a catch (s, counted after the freeze): nobody catches, chicken blinks. */
+  const INVULNERABLE = 2;
   let freeze = 0;
+  let invulnerable = 0;
   let afterFreeze: (() => void) | null = null;
   const spooks = createSpookManager(ctx.scene, reveal, wallsOnly, {
     onCaught(s) {
-      if (!playing()) return;
+      if (!playing() || invulnerable > 0) return;
+      invulnerable = FREEZE + INVULNERABLE;
       const room = roomIdAt(chicken.pos.x, chicken.pos.z);
       const res = progress.caught(room);
       store.emit({ type: 'caught', by: s.state.kind });
@@ -679,7 +683,9 @@ function boot(root: HTMLElement): void {
     frame.chickenMoving = chicken.moving;
     frame.hopNoise = progress.stats.hopNoise;
     if (stepCollar(collar, active ? dt : 0)) ui.toast(T.collarOff, T.collarOffSub);
-    frame.ignore = collar.active > 0;
+    if (invulnerable > 0) invulnerable = Math.max(0, invulnerable - rawDt);
+    frame.ignore = collar.active > 0 || invulnerable > 0;
+    chicken.object.visible = invulnerable <= 0 || freeze > 0 || Math.sin(time * 30) > -0.3;
     collarHud.set(
       phase === 'play' && store.get().flags[ATTIC_FLAG.collar] === true,
       collar.active,

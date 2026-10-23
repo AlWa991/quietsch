@@ -194,7 +194,9 @@ function createRudi(x: number, z: number, reveal: RevealSystem): Spook {
     reveal: rev,
     dist: Infinity,
     update(_dt, time, cx, cz) {
-      const awake = state.mode !== 'dormant';
+      // Wake-up after power-on: the eye stutters on and off before Rudi starts hunting.
+      const flick = state.wake > 0 && Math.sin(time * 38) < 0.1;
+      const awake = state.mode !== 'dormant' && !flick;
       const driving = state.mode === 'chase' && state.noiseAge < 1.1;
       object.position.set(state.x, driving ? Math.abs(Math.sin(time * 30)) * 0.02 : 0, state.z);
       object.rotation.y = state.heading;

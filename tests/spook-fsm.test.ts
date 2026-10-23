@@ -126,9 +126,24 @@ describe('spook kinds rudi / hand / peaceful', () => {
     expect(s.mode).toBe('wander');
   });
 
+  it('rudi is slower than the chicken and deaf while the wake-up flicker lasts', () => {
+    expect(RUDI.speed).toBeLessThan(3.2);
+    const s = createSpook(10, 10, 'rudi');
+    wakeRudi(s);
+    hearSound(s, 30, 10);
+    expect(s.mode).toBe('wander');
+    const events = run(s, input({ chickenX: 10.3, chickenZ: 10, chickenMoving: true }), 1.2);
+    expect(events).toEqual([]);
+    run(s, input(), RUDI.wakeTime);
+    expect(s.wake).toBe(0);
+    hearSound(s, 30, 10);
+    expect(s.mode).toBe('chase');
+  });
+
   it('rudi moves only while the last noise is fresh', () => {
     const s = createSpook(10, 10, 'rudi');
     wakeRudi(s);
+    run(s, input(), RUDI.wakeTime + 0.1);
     hearSound(s, 30, 10);
     expect(s.mode).toBe('chase');
     run(s, input(), 0.5);

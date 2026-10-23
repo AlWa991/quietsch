@@ -85,6 +85,7 @@ describe('köder', () => {
   it('Rudi drives to the ball while the squeak is fresh', () => {
     const r = createSpook(10, 0, 'rudi');
     wakeRudi(r);
+    r.wake = 0;
     hearSound(r, 0, 5);
     const inp = {
       dt: 0.05,

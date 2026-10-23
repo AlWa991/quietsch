@@ -714,11 +714,15 @@ body {
 }
 
 .q-title__logo {
-  font-family: var(--font-pixel);
-  font-weight: 700;
-  font-size: clamp(56px, 11vw, 112px);
+  /* Inter with a stroke for a black weight: Pixelify's C read as O ("QUIETSOH!"). */
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: clamp(52px, 10vw, 104px);
+  letter-spacing: 0.04em;
   line-height: 1;
   color: var(--chicken);
+  -webkit-text-stroke: 0.06em var(--chicken);
+  paint-order: stroke fill;
   text-shadow:
     0 0 28px rgba(255, 210, 63, 0.55),
     0 6px 0 #7a4a00;
