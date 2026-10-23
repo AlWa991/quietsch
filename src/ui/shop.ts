@@ -36,7 +36,7 @@ export function createShop(root: HTMLElement, store: Store, hooks: ShopHooks): P
         render();
       });
     } else if (owned) {
-      b.textContent = item.comingSoon ? SHOP.soon : SHOP.owned;
+      b.textContent = SHOP.owned;
       b.disabled = true;
     } else {
       const err = canBuy(w, item.id);
@@ -71,7 +71,6 @@ export function createShop(root: HTMLElement, store: Store, hooks: ShopHooks): P
       const row = el('div', `q-shop__item q-shop__item--${item.kind}`);
       const info = el('div', 'q-shop__info');
       const name = el('div', 'q-shop__name', item.name);
-      if (item.comingSoon) name.append(el('span', 'q-shop__tag', SHOP.soon));
       info.append(name, el('div', 'q-shop__text', item.text));
       row.append(el('div', 'q-shop__price', String(item.price)), info, buttonFor(item, w));
       list.append(row);

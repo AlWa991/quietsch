@@ -38,7 +38,7 @@ export function initUi(root: HTMLElement, store: Store): Ui {
   });
   store.on('rank-up', () => {
     hud.onRankUp();
-    toast('Neuer Rang!', rankName(store.get().rank));
+    toast(`Neuer Rang: ${rankName(store.get().rank)}`);
     if (!prefersReducedMotion()) replay(flash, 'q-flash--rank');
   });
   store.on('mission-progress', (e) => updateMissionProgress(e.progress, e.goal));

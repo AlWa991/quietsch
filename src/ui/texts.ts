@@ -182,7 +182,6 @@ export const SHOP = {
   wear: 'Tragen',
   takeOff: 'Abnehmen',
   tooExpensive: 'Zu wenig Federn',
-  soon: 'bald verfügbar',
   close: 'Weiter',
 } as const;
 
@@ -204,7 +203,7 @@ export const CHOICE = {
 export const ENDINGS = {
   A: {
     title: 'Ende A: Hinaus in den Sturm',
-    text: 'Am nächsten Morgen. Ein Umzugswagen vor dem Haus. Ein Kind springt heraus, sieht dich im Gras und ruft: ‚Wir haben dich vergessen!‘ Bello bellt zum ersten Mal seit Tagen.',
+    text: 'Du quietschst hinaus in den Sturm und kauerst die Nacht im nassen Gras. Im Morgengrauen hält ein Umzugswagen vor dem Haus. Ein Kind springt heraus, sieht dich und ruft: ‚Wir haben dich vergessen!‘ Bello bellt zum ersten Mal seit Tagen.',
   },
   B: {
     title: 'Ende B: Im Korb',

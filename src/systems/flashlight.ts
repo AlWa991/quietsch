@@ -23,7 +23,8 @@ export interface Flashlight {
 
 /** SpotLight cone attached to the chicken. Light does not make noise: spooks ignore it. */
 export function createFlashlight(parent: THREE.Object3D): Flashlight {
-  const spot = new THREE.SpotLight(0xfff1c8, 0, RANGE + 2, HALF_ANGLE, 0.45, 1.2);
+  // Visual reach beyond the gameplay RANGE so the cone reads clearly on the floor.
+  const spot = new THREE.SpotLight(0xfff1c8, 0, RANGE + 4, HALF_ANGLE, 0.45, 1);
   spot.position.set(0, 0.55, 0.2);
   const target = new THREE.Object3D();
   target.position.set(0, 0, 4);
@@ -57,7 +58,7 @@ export function createFlashlight(parent: THREE.Object3D): Flashlight {
       if (atKorb) battery = Math.min(1, battery + dt / RECHARGE_SECONDS);
       // Flicker when the battery is low.
       const flicker = battery < 0.2 ? 0.6 + 0.4 * Math.abs(Math.sin(time * 23)) : 1;
-      spot.intensity = on ? 9 * flicker : 0;
+      spot.intensity = on ? 16 * flicker : 0;
       return emptied;
     },
     lights(x, z, cx, cz, facing) {

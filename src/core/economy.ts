@@ -81,8 +81,6 @@ export interface ShopItem {
   price: number;
   text: string;
   kind: ShopItemKind;
-  /** Not implemented in gameplay yet: purchasable, labelled "bald verfügbar". */
-  comingSoon?: boolean;
   /** Found in the Keller (P4), never listed in the shop. */
   secret?: boolean;
 }

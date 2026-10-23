@@ -7,7 +7,7 @@ import { GridCell, type GameState } from './core/types';
 import { buy, toggleHat } from './core/economy';
 import { MISSION_IDS, type MissionId } from './core/missions';
 import { clearSave, loadGame } from './core/save';
-import { secretFound } from './core/keller';
+import { openOnce, secretFound } from './core/keller';
 import { peacefulCount } from './core/noise';
 import { CATCH_GRACE, tickGrace } from './core/spook-fsm';
 import {
@@ -521,7 +521,7 @@ function boot(root: HTMLElement): void {
       endLight.intensity = 9;
     }
     store.emit({ type: 'ending', endingId: id });
-    progress.addXp(100);
+    if (openOnce(store.get().flags, 'xp:finale')) progress.addXp(100);
     const s = store.get();
     const stars = totalStars(s.rooms);
     progress.save();
@@ -767,7 +767,9 @@ function boot(root: HTMLElement): void {
     // Simulation time only: the grace period holds still in pause, cards and the freeze-frame.
     invulnerable = tickGrace(invulnerable, active ? dt : 0);
     frame.ignore = collar.active > 0 || invulnerable > 0;
-    chicken.object.visible = invulnerable <= 0 || freeze > 0 || Math.sin(time * 30) > -0.3;
+    // Hidden on the title screen (it sat right behind the subtitle); blinks during the grace.
+    chicken.object.visible =
+      phase !== 'title' && (invulnerable <= 0 || freeze > 0 || Math.sin(time * 30) > -0.3);
     collarHud.set(
       phase === 'play' && store.get().flags[ATTIC_FLAG.collar] === true,
       collar.active,
