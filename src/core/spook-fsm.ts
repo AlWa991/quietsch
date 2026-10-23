@@ -105,6 +105,14 @@ export const FOLLOW = {
   snap: 6,
 } as const;
 
+/** Grace period after a catch (s, simulation time): nobody catches, the chicken blinks. */
+export const CATCH_GRACE = 2;
+
+/** Count the catch grace timer down by simulation dt (0 while paused, frozen or reading). */
+export function tickGrace(t: number, dt: number): number {
+  return Math.max(0, t - dt);
+}
+
 export function createSpook(x: number, z: number, kind: SpookKind = 'socke'): SpookState {
   return {
     kind,

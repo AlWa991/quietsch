@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  CATCH_GRACE,
   HAND,
   RUDI,
   SPOOK,
@@ -8,6 +9,7 @@ import {
   pacify,
   popHand,
   stepSpook,
+  tickGrace,
   wakeRudi,
   type SpookInput,
 } from '@/core/spook-fsm';
@@ -198,5 +200,18 @@ describe('spook kinds rudi / hand / peaceful', () => {
     pacify(far);
     run(far, input({ chickenX: 20, chickenZ: 10 }), 6);
     expect(20 - far.x).toBeLessThan(2);
+  });
+});
+
+describe('catch grace period', () => {
+  it('counts down with simulation dt only (pause, cards and freeze hold it)', () => {
+    let t = CATCH_GRACE;
+    // Paused for 3 s: dt is 0, the grace period is untouched.
+    for (let i = 0; i < 180; i++) t = tickGrace(t, 0);
+    expect(t).toBe(CATCH_GRACE);
+    for (let i = 0; i < 20; i++) t = tickGrace(t, 0.05);
+    expect(t).toBeCloseTo(CATCH_GRACE - 1, 5);
+    for (let i = 0; i < 40; i++) t = tickGrace(t, 0.05);
+    expect(t).toBe(0);
   });
 });
