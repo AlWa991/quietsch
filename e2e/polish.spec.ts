@@ -152,6 +152,20 @@ test('the first catch anywhere shows the night-light card; the Flur banner keeps
   expect(errors).toEqual([]);
 });
 
+test('HUD shows a stars chip that counts completed missions', async ({ page }) => {
+  const errors = collectErrors(page);
+  await boot(page);
+  await page.screenshot({ path: `${SHOT}/final-title.png` });
+  await play(page);
+  await expect(page.locator('.q-chip--star')).toContainText('0/9');
+  await page.evaluate(() => window.__game?.actions?.completeMission('echo'));
+  await closeCards(page);
+  await expect(page.locator('.q-chip--star')).not.toContainText('0/9');
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${SHOT}/final-hud-stars.png` });
+  expect(errors).toEqual([]);
+});
+
 for (const id of ['A', 'B'] as const) {
   test(`ending ${id} shows the live scene behind a translucent panel`, async ({ page }) => {
     const errors = collectErrors(page);

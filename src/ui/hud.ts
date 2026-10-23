@@ -2,6 +2,8 @@ import type { Store } from './store';
 import { el, prefersReducedMotion, replay } from './dom';
 import { rankName } from './texts';
 import { rankProgress } from '@/core/economy';
+import { totalStars } from '@/core/attic';
+import { MISSION_IDS } from '@/core/missions';
 
 export interface Hud {
   readonly el: HTMLElement;
@@ -11,6 +13,8 @@ export interface Hud {
   onFeathers(): void;
   onHeartLost(): void;
   onGhostlight(): void;
+  /** Recount the stars after a mission is completed. */
+  onStars(): void;
   /** Update rank label + bar after a rank-up. */
   onRankUp(): void;
 }
@@ -49,6 +53,13 @@ export function createHud(root: HTMLElement, store: Store): Hud {
   lights.append(lightVal);
   lights.title = 'Geisterlichter';
 
+  const stars = el('div', 'q-chip q-chip--star');
+  stars.append(el('span', 'q-chip__icon', '★'));
+  const starVal = el('span', 'q-chip__value', '0');
+  stars.append(starVal);
+  stars.title = 'Sterne';
+  const starText = (): string => `${totalStars(store.get().rooms)}/${MISSION_IDS.length * 3}`;
+
   const rank = el('div', 'q-rank');
   const rankLabel = el('div', 'q-rank__name');
   const rankBar = el('div', 'q-rank__bar');
@@ -57,7 +68,7 @@ export function createHud(root: HTMLElement, store: Store): Hud {
   rank.append(rankLabel, rankBar);
 
   const row = el('div', 'q-hud__row');
-  row.append(feathers, lights);
+  row.append(feathers, lights, stars);
   wrap.append(hearts, row, rank);
   root.appendChild(wrap);
 
@@ -92,6 +103,7 @@ export function createHud(root: HTMLElement, store: Store): Hud {
     const s = store.get();
     setFeathers(s.feathers);
     lightVal.textContent = String(s.ghostlights);
+    starVal.textContent = starText();
     renderHearts();
     renderRank();
   }
@@ -130,11 +142,16 @@ export function createHud(root: HTMLElement, store: Store): Hud {
     replay(lights, 'q-pop');
   }
 
+  function onStars(): void {
+    starVal.textContent = starText();
+    replay(stars, 'q-pop');
+  }
+
   function onRankUp(): void {
     renderRank();
     replay(rank, 'q-pop');
   }
 
   sync();
-  return { el: wrap, sync, onFeathers, onHeartLost, onGhostlight, onRankUp };
+  return { el: wrap, sync, onFeathers, onHeartLost, onGhostlight, onStars, onRankUp };
 }

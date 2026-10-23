@@ -31,6 +31,7 @@ export function initUi(root: HTMLElement, store: Store): Ui {
 
   store.on('feathers', () => hud.onFeathers());
   store.on('ghostlight', () => hud.onGhostlight());
+  store.on('mission-complete', () => hud.onStars());
   store.on('heart-lost', () => {
     hud.onHeartLost();
     if (!prefersReducedMotion()) replay(flash, 'q-flash--danger');
