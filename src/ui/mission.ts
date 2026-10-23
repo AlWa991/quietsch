@@ -5,6 +5,7 @@ let textEl: HTMLElement | null = null;
 let barEl: HTMLElement | null = null;
 let fillEl: HTMLElement | null = null;
 let countEl: HTMLElement | null = null;
+let hintEl: HTMLElement | null = null;
 
 export function mountMission(root: HTMLElement): void {
   banner = el('div', 'q-mission');
@@ -14,12 +15,19 @@ export function mountMission(root: HTMLElement): void {
   fillEl = el('div', 'q-mission__fill');
   barEl.appendChild(fillEl);
   countEl = el('div', 'q-mission__count');
-  banner.append(textEl, barEl, countEl);
+  hintEl = el('div', 'q-mission__hint');
+  hintEl.hidden = true;
+  banner.append(textEl, barEl, countEl, hintEl);
   root.appendChild(banner);
 }
 
-export function showMission(text: string, progress?: number, goal?: number): void {
-  if (!banner || !textEl || !barEl || !fillEl || !countEl) return;
+/** `hint` adds a small second line under the banner; undefined keeps the current one. */
+export function showMission(text: string, progress?: number, goal?: number, hint?: string): void {
+  if (!banner || !textEl || !barEl || !fillEl || !countEl || !hintEl) return;
+  if (hint !== undefined) {
+    hintEl.textContent = hint;
+    hintEl.hidden = hint === '';
+  }
   const wasHidden = banner.hidden;
   banner.hidden = false;
   textEl.textContent = text;

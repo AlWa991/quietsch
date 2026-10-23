@@ -313,6 +313,11 @@ function boot(root: HTMLElement): void {
           const len = Math.hypot(dx, dz) || 1;
           moveAndSlide(grid, chicken.pos, (dx / len) * 1.2, (dz / len) * 1.2, 0.28);
         }
+        // Geisterlicht tutorial: the first catch anywhere explains the night light. Once.
+        if (!store.get().flags['card:peaceHint']) {
+          nightPulse = NIGHT_PULSE;
+          void card('peaceHint');
+        }
       };
     },
     onDelivered(s) {
@@ -712,6 +717,7 @@ function boot(root: HTMLElement): void {
   const objective: Objective = { text: '', progress: 0, goal: 0 };
   let shownText = '';
   let shownProgress = -1;
+  let shownHint = '';
   let lastRoom = roomIdAt(chicken.pos.x, chicken.pos.z);
   // The Keller swallows light: fog closes in while the chicken is down there.
   const fog = ctx.scene.fog instanceof THREE.Fog ? ctx.scene.fog : null;
@@ -812,11 +818,14 @@ function boot(root: HTMLElement): void {
             : T.hub
           : '';
       const prog = hasObj ? objective.progress : locks;
-      if (text !== shownText || prog !== shownProgress) {
+      // Until the first Geisterlicht, the Flur banner keeps the night-light hint visible.
+      const hint = room === 'flur' && store.get().ghostlights === 0 ? T.nightHint : '';
+      if (text !== shownText || prog !== shownProgress || hint !== shownHint) {
         shownText = text;
         shownProgress = prog;
+        shownHint = hint;
         if (text === '') ui.hideMission();
-        else ui.showMission(text, prog, hasObj ? objective.goal : 3);
+        else ui.showMission(text, prog, hasObj ? objective.goal : 3, hint);
       }
 
       // Geisterlicht tutorial: the first sock chasing the chicken into the Flur. Once.

@@ -126,6 +126,7 @@ export const T = {
   allLocksSub: 'Zur Haustür!',
   toDoor: 'Zur Haustür!',
   hub: 'Finde drei Dinge für die Haustür.',
+  nightHint: 'Tipp: Socke ins Nachtlicht locken und anschreien = befrieden.',
   rankUp: 'Neuer Rang!',
   bought: 'Gekauft!',
   saved: 'Gespeichert',

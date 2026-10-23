@@ -128,6 +128,30 @@ test('a sock chasing into the Flur triggers the night-light hint once', async ({
   expect(errors).toEqual([]);
 });
 
+test('the first catch anywhere shows the night-light card; the Flur banner keeps a hint', async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await boot(page);
+  await play(page);
+  await expect(page.locator('.q-mission__hint')).toContainText('Nachtlicht');
+  // Step onto a Kinderzimmer sock: caught, then the tutorial card follows the freeze-frame.
+  for (let i = 0; i < 10; i++) {
+    await page.evaluate(() => {
+      const g = window.__game;
+      const s = g?.actions?.spooks().find((sp) => sp.kind === 'socke' && sp.x < 16);
+      if (s) g?.actions?.warp(s.x, s.z);
+    });
+    await page.waitForTimeout(300);
+    if (await page.locator('.q-story').isVisible()) break;
+  }
+  await page.locator('.q-story').waitFor({ state: 'visible', ...WAIT });
+  await expect(page.locator('.q-story')).toContainText('Spuk im Licht anschreien');
+  await closeCards(page);
+  expect(await page.evaluate(() => window.__game?.state.flags['card:peaceHint'])).toBe(true);
+  expect(errors).toEqual([]);
+});
+
 for (const id of ['A', 'B'] as const) {
   test(`ending ${id} shows the live scene behind a translucent panel`, async ({ page }) => {
     const errors = collectErrors(page);

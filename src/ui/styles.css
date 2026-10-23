@@ -254,8 +254,16 @@ body {
   color: var(--accent);
 }
 
+.q-mission__hint {
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 1.3;
+  color: var(--accent);
+}
+
 .q-mission__bar[hidden],
-.q-mission__count[hidden] {
+.q-mission__count[hidden],
+.q-mission__hint[hidden] {
   display: none;
 }
 
