@@ -95,6 +95,8 @@ export interface GameActions {
   kills(): number;
   /** Jumpscares shown so far. */
   scares(): number;
+  /** e2e: show jumpscare faces for `ms` instead of 0.5 s. */
+  holdScares(ms: number): void;
 }
 
 export interface SpookInfo {
@@ -377,11 +379,13 @@ function boot(root: HTMLElement): void {
     flash: (v) => postfx.setFlash(v),
     silence: (t) => dread.silence(t),
   });
+  /** Debug/e2e: keep the face up longer so slow software rendering can screenshot it. */
+  let scareHoldMs = 0;
   const scareOnce = (kind: ScareKind): void => {
     const f = store.get().flags;
-    if (f[`scare:${kind}`]) return;
-    f[`scare:${kind}`] = true;
-    void scares.jumpscare(kind);
+    if (f[`jump:${kind}`]) return;
+    f[`jump:${kind}`] = true;
+    void scares.jumpscare(kind, scareHoldMs > 0 ? { durationMs: scareHoldMs } : undefined);
   };
 
   // --- Combat (P7) ------------------------------------------------------------------------
@@ -1074,6 +1078,7 @@ function boot(root: HTMLElement): void {
     faceTo: (x, z) => chicken.face(Math.atan2(x - chicken.pos.x, z - chicken.pos.z)),
     kills: () => combat.kills,
     scares: () => scares.count,
+    holdScares: (ms) => (scareHoldMs = Math.max(0, ms)),
     bait: () => ({
       phase: bait.state.phase,
       x: bait.state.toX,
