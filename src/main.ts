@@ -36,6 +36,8 @@ import { ATTIC_FLAG, createCollar, stepCollar, totalStars, wearCollar } from './
 import { COMBAT_T, PROMPT, rankName, STORY_CARDS, T } from './ui/texts';
 import { buildHouse, placeProps } from './world/builder';
 import { installHalloween } from './world/halloween';
+import { addHalloweenDressing } from './world/halloween-props';
+import { createAmbientGhosts } from './entities/ambient-ghost';
 import {
   ATTIC_ARRIVAL,
   HOUSE_ASCII,
@@ -498,6 +500,8 @@ function boot(root: HTMLElement): void {
       ui.spawnFloat('+1 ♥', p.sx, p.sy, 'feather');
     },
   });
+  const hwProps = addHalloweenDressing(ctx.scene, map);
+  const ambientGhosts = createAmbientGhosts(ctx.scene, map);
 
   // --- Keller: invisible and silent until the hollow wall opens ------------------------
   const inKeller = (x: number, z: number): boolean => x > 16.5 && x < 27.5 && z > 31.9;
@@ -1010,6 +1014,8 @@ function boot(root: HTMLElement): void {
       fog.far += (want.far - fog.far) * k;
     }
     halloween.update(dt, time, chicken.pos.x, chicken.pos.z);
+    hwProps.update(dt);
+    ambientGhosts.update(dt);
     reveal.update(dt);
     if (endingId === 'A') {
       stormIn -= rawDt;

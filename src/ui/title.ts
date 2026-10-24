@@ -1,4 +1,5 @@
 import { el } from './dom';
+import { dressTitle } from './title-halloween';
 import { TITLE } from './texts';
 
 /** Title screen. Resolves with the player's choice and removes itself. */
@@ -31,6 +32,7 @@ export function showTitle(root: HTMLElement, hasSave: boolean): Promise<'new' | 
     card.append(buttons);
     overlay.append(card);
     root.append(overlay);
+    dressTitle(overlay);
     (cont ?? play).focus({ preventScroll: true });
 
     const done = (choice: 'new' | 'continue'): void => {
