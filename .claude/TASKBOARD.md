@@ -3,6 +3,8 @@ Legende: TODO · WIP · REVIEW · DONE · CUT · (Modell) · Owner-Dateien exklu
 
 Stand: P6 abgeschlossen. Final-Deploy auf 858f35c, Live-Check https://alwa991.github.io/quietsch/ = 200. Offen: nur die Abgabe durch Alex.
 
+P7 (24.10.): Phase P7 "Combat & Horror" teilweise ausgeliefert (Deploy bf8cacf, 136 Unit-Tests grün, Live https://alwa991.github.io/quietsch/ = 200). IN: breitere Türen, Kampf-Kern, Jumpscare-System + 4 Trigger, Dread-Layer, Halloween-Deko. OUT/Backlog: Teddy/Kürbis/Spinne, Schallwelle, Lampe-Freeze, Ansturm, Shop-Erweiterung, Playtest 4.
+
 ## Offene Tasks
 - [ ] Abgabe im Contest-Portal durch Alex (Checkliste: docs/ABGABE.md)
 
@@ -11,6 +13,7 @@ Stand: P6 abgeschlossen. Final-Deploy auf 858f35c, Live-Check https://alwa991.gi
 - T18 Hüte-Erweiterung (nicht beauftragt)
 
 ## Backlog nach Abgabe
+- P7 offen: Teddy/Kürbis/Spinne, Schallwelle, Lampe-Freeze, Ansturm, Shop-Erweiterung, Playtest 4
 - Vite-Build: three-Chunk 642 kB (Warnung > 500 kB, index 117 kB)
 - Keller nicht dunkler: Taschenlampe nach Fund ohne Pflichtzweck (Lampe heller/länger, T22b #11 nur teilweise)
 - Legende-Rang (Schreihals/Legende) in einem Lauf praktisch unerreichbar (Ränge bewusst laut Spec)
@@ -43,3 +46,4 @@ Stand: P6 abgeschlossen. Final-Deploy auf 858f35c, Live-Check https://alwa991.gi
 - [x] T22b Finaler Fix-Lauf nach Playtest 3: Schonzeit in Simulationszeit, Keller-Socke, Socke-Alarm 1,2 s, Nachtlicht-Hinweis, Sterne-Chip im HUD, README Shift/Q, Finale-XP einmal, Rang-Toast, Taschenlampe heller, Ende-A-Start, comingSoon entfernt, three-Chunk · 3ac9e1c, b2f82a7, 17942cc, c16b84f, 2ee7f92
 - [x] T23 Finaler Deploy auf 858f35c (Orchestrator), Live-Check 200, Bundle index-RWC0QaoQ.js identisch mit lokalem dist
 - [x] T24 Chat-Log-Summary, SESSION_STATE final, docs/ABGABE.md (Abgabe-Checkliste)
+- [x] P7 Combat & Horror (teilweise): Türen 3 breit, Kampf-Kern, Jumpscares + 4 Trigger, Dread-Layer, Halloween-Deko · bf8cacf

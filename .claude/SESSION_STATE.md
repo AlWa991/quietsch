@@ -1,6 +1,7 @@
 # SESSION_STATE – QUIETSCH!
 **Live: https://alwa991.github.io/quietsch/** · Repo: https://github.com/AlWa991/quietsch
-Stand: 2026-10-23 · Phase: P6 abgeschlossen (T23 Deploy 858f35c, Live-Check 200, T24 Bookkeeping) · Blocker: keine · Next: Abgabe durch Alex (Checkliste: docs/ABGABE.md)
+Stand: 2026-10-24 · P7: Phase P7 "Combat & Horror" teilweise ausgeliefert (Deploy bf8cacf, 136 Unit-Tests grün, Live https://alwa991.github.io/quietsch/ = 200). IN: breitere Türen, Kampf-Kern, Jumpscare-System + 4 Trigger, Dread-Layer, Halloween-Deko. OUT/Backlog: Teddy/Kürbis/Spinne, Schallwelle, Lampe-Freeze, Ansturm, Shop-Erweiterung, Playtest 4.
+Vorher: Phase: P6 abgeschlossen (T23 Deploy 858f35c, Live-Check 200, T24 Bookkeeping) · Blocker: keine · Next: Abgabe durch Alex (Checkliste: docs/ABGABE.md)
 
 ## Projekt
 3D-Browser-Spiel (Three.js, TypeScript, Vite) für den 24h-Contest. Theme „It's spooky outside“, Objekt Quietschhähnchen. Titel: QUIETSCH! – Raus aus dem dunklen Haus. GDD: docs/GDD.md · Architektur: docs/ARCHITECTURE.md · Tasks: .claude/TASKBOARD.md · Jury-Feedback: docs/playtest-1..3.md
@@ -29,6 +30,7 @@ Debug: `?debug=1` (FPS, Hörradius, Tasten 1–6 Raum-Teleport, L = Blitz) · `?
 Docker: `docker compose up -d --build && curl -s -o /dev/null -w "%{http_code}" localhost:8080/health`
 
 ## Backlog nach Abgabe
+- P7 offen: Teddy/Kürbis/Spinne, Schallwelle, Lampe-Freeze, Ansturm, Shop-Erweiterung, Playtest 4
 - three-Chunk 642 kB (Build-Warnung > 500 kB)
 - Keller nicht dunkler: Taschenlampe ohne Pflichtnutzung
 - Legende-Rang in einem Lauf praktisch unerreichbar

@@ -10,6 +10,13 @@ Für Alex. Alle Texte sind fertig formuliert und können kopiert werden.
 ## Kurzbeschreibung (spoilerfrei)
 Halloween-Nacht, Sturm, ein stockdunkles Haus: Du bist das Quietschhähnchen, Lieblingsspielzeug von Hund Bello, und willst die Haustür öffnen und raus in die Nacht. Dein einziges Werkzeug ist dein Schrei: Er wirft einen Sonar-Ring, der die Umgebung aufleuchten lässt, aber auch alles Spukige auf dich aufmerksam macht. Je länger du schreist, desto mehr siehst du und desto größer ist das Risiko.
 
+## Features (Ergänzung P7)
+- **Kampf:** Schnabelhiebe (3er-Kombo) gegen Socken, Hände und Rudi. Besiegte Gegner lassen Federn fallen.
+- **Jumpscares:** Gescriptete Schreckmomente (Kühlschrank, Wohnzimmer, Keller, Türklingel) plus Dread-Soundlayer, der die Anspannung steigert.
+- **Halloween-Deko:** Kürbislaternen, Spinnweben, Kerzen und Geister vor den Fenstern.
+
+**Hinweis:** Enthält Jumpscares und laute Sounds (Kopfhörer-Lautstärke vorab prüfen).
+
 ## Steuerung
 | Taste              | Aktion                                              |
 | ------------------ | --------------------------------------------------- |
@@ -21,6 +28,7 @@ Halloween-Nacht, Sturm, ein stockdunkles Haus: Du bist das Quietschhähnchen, Li
 | Shift              | Köder werfen (sobald im Shop gekauft)               |
 | Q                  | Bellos Halsband (sobald auf dem Dachboden gefunden) |
 | Esc                | Shop / Pause                                        |
+| J / linke Maustaste | Schnabelhieb (3er-Kombo) gegen Socken, Hände und Rudi |
 
 ## Theme und Objekt
 - Theme: „It's spooky outside“
@@ -42,6 +50,7 @@ Vollständige Liste: docs/CREDITS.md (im Repo, verlinkt aus der README).
 ## Bekannte Einschränkungen
 - Nur Desktop, keine Touch-Steuerung
 - Spielzeit ca. 7–10 Minuten (Schätzung, nicht gemessen)
+- Enthält Jumpscares und laute Sounds
 - Geheimräume (Keller, Dachboden) sind optional
 
 ## Vor dem Absenden (Alex)

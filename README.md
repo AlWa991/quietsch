@@ -4,6 +4,8 @@
 
 Ein 3D-Browserspiel, entstanden im 24-Stunden-Contest. Halloween-Nacht, Sturm, ein stockdunkles Haus: Du bist das Quietschhähnchen, Lieblingsspielzeug von Hund Bello, und willst die Haustür öffnen und raus in die Nacht. Dein einziges Werkzeug ist dein Schrei: Er wirft einen Sonar-Ring, der die Umgebung aufleuchten lässt, aber auch alles Spukige auf dich aufmerksam macht. Je länger du schreist, desto mehr siehst du und desto größer ist das Risiko.
 
+> Enthält Jumpscares und laute Sounds.
+
 Spielbar direkt im Browser, ohne Installation. Repository: https://github.com/AlWa991/quietsch
 
 ## Steuerung
@@ -18,6 +20,7 @@ Spielbar direkt im Browser, ohne Installation. Repository: https://github.com/Al
 | Shift              | Köder werfen (sobald im Shop gekauft)               |
 | Q                  | Bellos Halsband (sobald auf dem Dachboden gefunden) |
 | Esc                | Shop / Pause                                        |
+| J / linke Maustaste | Schnabelhieb (3er-Kombo) gegen Socken, Hände und Rudi |
 
 ## Features und Belohnungssystem
 
@@ -28,6 +31,9 @@ Spielbar direkt im Browser, ohne Installation. Repository: https://github.com/Al
 - **XP und Ränge:** Vom Küken über Gockel, Hahn und Schreihals bis zur Legende, mit Level-up-Fanfare.
 - **Herzen und Panik:** Drei Mut-Herzen. Wirst du gefangen, verlierst du ein Herz und einen Teil deiner Federn. Bei null Herzen geht es in den Korb zurück. Es gibt kein Game-Over.
 - **Raum-Sterne:** Pro Raum bis zu drei Sterne für Mission, Zeit und Unentdecktsein.
+- **Kampf:** Schnabelhiebe (3er-Kombo) gegen Socken, Hände und Rudi. Besiegte Gegner lassen Federn fallen.
+- **Jumpscares:** Gescriptete Schreckmomente (Kühlschrank, Wohnzimmer, Keller, Türklingel) plus Dread-Soundlayer, der die Anspannung steigert.
+- **Halloween-Deko:** Kürbislaternen, Spinnweben, Kerzen und Geister vor den Fenstern.
 - **Speichern:** Der Spielstand liegt im Browser (localStorage), ein Reload verliert keinen Fortschritt.
 
 ## Story-Teaser
