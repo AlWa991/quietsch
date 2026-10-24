@@ -27,8 +27,14 @@ const FLASH_HOLD_MS = 80;
 const FLASH_FADE_MS = 120;
 const FLASH_STEP_MS = 16;
 /** Darkness beat after the face. */
-const DARK_BEAT_MS = 2000;
-const DEFAULT_FACE_MS = 700;
+const DARK_BEAT_MS = 1500;
+/** Face hold before the fade (configurable per call). */
+const DEFAULT_FACE_MS = 1800;
+const FADE_OUT_MS = 150;
+/** Input that must not reach the game while a face is up (key/mouse releases stay allowed). */
+const BLOCKED_EVENTS = ['keydown', 'mousedown', 'mousemove', 'wheel', 'pointerdown', 'click'];
+
+const KINDS: ScareKind[] = ['socke', 'teddy', 'kuerbis', 'rudi', 'hand', 'spinne', 'spiegel'];
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -55,12 +61,54 @@ export function createJumpscares(root: HTMLElement, hooks: ScareHooks): Jumpscar
   overlay.append(channelDefs(), jitter);
   root.append(overlay);
 
-  const faces = new Map<ScareKind, string>();
+  // All faces are built at boot and live in the DOM (hidden via visibility), so showing is a class toggle.
+  const faceEls = new Map<ScareKind, HTMLElement>();
+  for (const kind of KINDS) {
+    const html = buildFace(kind);
+    const el = document.createElement('div');
+    el.className = 'js-face';
+    el.innerHTML =
+      `<div class="js-copy">${html}</div>` +
+      `<div class="js-copy js-r">${html}</div>` +
+      `<div class="js-copy js-c">${html}</div>`;
+    layer.append(el);
+    faceEls.set(kind, el);
+  }
   let active = false;
   let count = 0;
   let current: Promise<void> = Promise.resolve();
   let flashTimer = 0;
   let darkTimer = 0;
+  let warming = true;
+
+  const blockInput = (e: Event): void => {
+    e.stopImmediatePropagation();
+    e.preventDefault();
+  };
+  const setInputBlocked = (on: boolean): void => {
+    for (const t of BLOCKED_EVENTS) {
+      if (on) window.addEventListener(t, blockInput, true);
+      else window.removeEventListener(t, blockInput, true);
+    }
+  };
+
+  /** Rasterise every face once (near-invisible, one frame each) so the first real scare paints at once. */
+  function warmUp(): void {
+    const frame = (): Promise<void> => new Promise((r) => requestAnimationFrame(() => r()));
+    void (async () => {
+      overlay.classList.add('js-warm');
+      for (const kind of KINDS) {
+        if (!warming) break;
+        const el = faceEls.get(kind);
+        el?.classList.add('js-show');
+        await frame();
+        await frame();
+        el?.classList.remove('js-show');
+      }
+      overlay.classList.remove('js-warm');
+    })();
+  }
+  warmUp();
 
   /** Wall-clock driven (setTimeout), independent of the game's dt, so it can never stick at white. */
   function runFlash(): void {
@@ -76,33 +124,23 @@ export function createJumpscares(root: HTMLElement, hooks: ScareHooks): Jumpscar
     flashTimer = window.setTimeout(step, FLASH_HOLD_MS);
   }
 
-  function faceMarkup(kind: ScareKind): string {
-    let html = faces.get(kind);
-    if (html === undefined) {
-      html = buildFace(kind);
-      faces.set(kind, html);
-    }
-    return html;
-  }
-
   function jumpscare(kind: ScareKind, opts: ScareOpts = {}): Promise<void> {
     if (active) return current;
     const ms = Math.max(120, opts.durationMs ?? DEFAULT_FACE_MS);
     active = true;
     count++;
 
-    const html = faceMarkup(kind);
-    layer.innerHTML =
-      `<div class="js-copy">${html}</div>` +
-      `<div class="js-copy js-r">${html}</div>` +
-      `<div class="js-copy js-c">${html}</div>`;
-    // chromatic copies are decoration: drop duplicate ids' side effects by keeping them identical
+    warming = false;
+    overlay.classList.remove('js-warm');
+    for (const el of faceEls.values()) el.classList.remove('js-show');
+    faceEls.get(kind)?.classList.add('js-show');
     overlay.style.setProperty('--js-dur', `${ms}ms`);
     window.clearTimeout(darkTimer);
     overlay.classList.remove('js-dark');
     overlay.classList.remove('js-on');
     void overlay.offsetWidth; // restart animations
-    overlay.classList.add('js-on');
+    overlay.classList.add('js-on'); // same frame: face visible, no timer before it
+    setInputBlocked(true);
 
     runFlash();
     hooks.shake(0.5, 0.3);
@@ -111,13 +149,14 @@ export function createJumpscares(root: HTMLElement, hooks: ScareHooks): Jumpscar
     current = new Promise<void>((resolve) => {
       window.setTimeout(() => {
         overlay.classList.remove('js-on');
-        layer.innerHTML = '';
+        for (const el of faceEls.values()) el.classList.remove('js-show');
         overlay.classList.add('js-dark');
         darkTimer = window.setTimeout(() => overlay.classList.remove('js-dark'), DARK_BEAT_MS);
+        setInputBlocked(false);
         active = false;
         hooks.silence(2);
         resolve();
-      }, ms);
+      }, ms + FADE_OUT_MS);
     });
     return current;
   }
