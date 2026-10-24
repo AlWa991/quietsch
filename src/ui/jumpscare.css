@@ -1,0 +1,189 @@
+.js-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  pointer-events: none;
+  display: none;
+  background: #000;
+  overflow: hidden;
+  --js-dur: 500ms;
+  --js-jit: 14px;
+  --js-ab: 7px;
+}
+.js-overlay.js-on {
+  display: block;
+  animation: js-life var(--js-dur) linear forwards;
+}
+.js-jitter {
+  position: absolute;
+  inset: 0;
+  animation: js-jitter calc(var(--js-dur) * 0.9) steps(1) forwards;
+}
+.js-layer {
+  position: absolute;
+  inset: 0;
+  animation: js-punch var(--js-dur) cubic-bezier(0.1, 0.9, 0.3, 1) forwards;
+}
+.js-copy {
+  position: absolute;
+  inset: 0;
+}
+.js-copy svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.js-copy.js-r,
+.js-copy.js-c {
+  mix-blend-mode: screen;
+}
+.js-copy.js-r {
+  filter: url(#js-ch-r);
+  animation: js-ab-r calc(var(--js-dur) * 0.9) steps(1) forwards;
+}
+.js-copy.js-c {
+  filter: url(#js-ch-c);
+  animation: js-ab-c calc(var(--js-dur) * 0.9) steps(1) forwards;
+}
+.js-defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+
+@keyframes js-punch {
+  0% {
+    transform: scale(0.6);
+  }
+  14% {
+    transform: scale(1.15);
+  }
+  100% {
+    transform: scale(1.22);
+  }
+}
+@keyframes js-jitter {
+  0% {
+    transform: translate(0, 0);
+  }
+  10% {
+    transform: translate(calc(var(--js-jit) * -1), calc(var(--js-jit) * 0.5));
+  }
+  20% {
+    transform: translate(var(--js-jit), calc(var(--js-jit) * -0.6));
+  }
+  30% {
+    transform: translate(calc(var(--js-jit) * -0.5), calc(var(--js-jit) * -0.8));
+  }
+  40% {
+    transform: translate(calc(var(--js-jit) * 0.8), var(--js-jit));
+  }
+  50% {
+    transform: translate(calc(var(--js-jit) * -0.9), calc(var(--js-jit) * 0.2));
+  }
+  60% {
+    transform: translate(calc(var(--js-jit) * 0.4), calc(var(--js-jit) * -0.7));
+  }
+  70% {
+    transform: translate(calc(var(--js-jit) * -0.7), calc(var(--js-jit) * 0.9));
+  }
+  80% {
+    transform: translate(var(--js-jit), calc(var(--js-jit) * 0.3));
+  }
+  90% {
+    transform: translate(calc(var(--js-jit) * -0.3), calc(var(--js-jit) * -0.5));
+  }
+  100% {
+    transform: translate(0, 0);
+  }
+}
+@keyframes js-ab-r {
+  0% {
+    transform: translate(var(--js-ab), 0);
+  }
+  25% {
+    transform: translate(calc(var(--js-ab) * -1.4), calc(var(--js-ab) * 0.4));
+  }
+  50% {
+    transform: translate(calc(var(--js-ab) * 1.6), calc(var(--js-ab) * -0.5));
+  }
+  75% {
+    transform: translate(calc(var(--js-ab) * -0.8), 0);
+  }
+  100% {
+    transform: translate(var(--js-ab), 0);
+  }
+}
+@keyframes js-ab-c {
+  0% {
+    transform: translate(calc(var(--js-ab) * -1), 0);
+  }
+  25% {
+    transform: translate(calc(var(--js-ab) * 1.4), calc(var(--js-ab) * -0.4));
+  }
+  50% {
+    transform: translate(calc(var(--js-ab) * -1.6), calc(var(--js-ab) * 0.5));
+  }
+  75% {
+    transform: translate(calc(var(--js-ab) * 0.8), 0);
+  }
+  100% {
+    transform: translate(calc(var(--js-ab) * -1), 0);
+  }
+}
+/* flicker in the first third, hard fade at the end */
+@keyframes js-life {
+  0% {
+    opacity: 1;
+  }
+  18% {
+    opacity: 0.35;
+  }
+  22% {
+    opacity: 1;
+  }
+  34% {
+    opacity: 0.6;
+  }
+  38% {
+    opacity: 1;
+  }
+  78% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .js-overlay {
+    --js-jit: 3px;
+    --js-ab: 3px;
+  }
+  .js-overlay.js-on {
+    animation-name: js-life-calm;
+  }
+  .js-layer {
+    animation-name: js-punch-calm;
+  }
+}
+@keyframes js-life-calm {
+  0% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes js-punch-calm {
+  0% {
+    transform: scale(0.9);
+  }
+  100% {
+    transform: scale(1.05);
+  }
+}
