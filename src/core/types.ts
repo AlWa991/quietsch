@@ -46,7 +46,7 @@ export interface HouseMap {
   rooms: RoomDef[];
 }
 
-export type SpookKind = 'socke' | 'hand' | 'rudi';
+export type SpookKind = 'socke' | 'hand' | 'rudi' | 'teddy' | 'kuerbis' | 'spinne';
 
 /** Events flowing through the UI store; systems emit, UI/audio listen. */
 export type GameEvent =

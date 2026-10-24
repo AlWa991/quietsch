@@ -1,0 +1,101 @@
+/* P7 combat feedback: pooled damage numbers, combo counter. */
+.q-dmg-layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.q-dmg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  font-family: var(--font-pixel);
+  font-weight: 700;
+  font-size: 30px;
+  color: #fff;
+  white-space: nowrap;
+  opacity: 0;
+  text-shadow:
+    0 3px 0 rgba(0, 0, 0, 0.7),
+    0 0 10px rgba(255, 80, 80, 0.8);
+  will-change: transform, opacity;
+}
+
+.q-dmg.is-on {
+  animation: q-dmg-pop 0.75s cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
+}
+
+.q-dmg--crit {
+  font-size: 42px;
+  color: #ffd23f;
+  text-shadow:
+    0 3px 0 rgba(0, 0, 0, 0.7),
+    0 0 16px rgba(255, 160, 40, 0.9);
+}
+
+.q-dmg--immune {
+  font-size: 24px;
+  color: #9fb3c9;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.7);
+}
+
+.q-dmg--hurt {
+  color: var(--danger);
+}
+
+@keyframes q-dmg-pop {
+  0% {
+    opacity: 1;
+    transform: translate(var(--x), var(--y)) translate(-50%, -50%) scale(0.4);
+  }
+  18% {
+    opacity: 1;
+    transform: translate(var(--x), calc(var(--y) - 22px)) translate(-50%, -50%) scale(1.35);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(var(--x) + var(--dx)), calc(var(--y) - 70px)) translate(-50%, -50%)
+      scale(0.9);
+  }
+}
+
+.q-combo {
+  position: absolute;
+  right: 24px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: var(--font-pixel);
+  font-weight: 700;
+  font-size: 34px;
+  color: #ffd23f;
+  text-shadow:
+    0 3px 0 rgba(0, 0, 0, 0.6),
+    0 0 18px rgba(255, 140, 40, 0.8);
+  opacity: 0;
+  transition: opacity 0.25s;
+  pointer-events: none;
+}
+
+.q-combo.is-on {
+  opacity: 1;
+}
+
+.q-combo.is-bump {
+  animation: q-combo-bump 0.18s ease-out;
+}
+
+@keyframes q-combo-bump {
+  0% {
+    transform: translateY(-50%) scale(1.5);
+  }
+  100% {
+    transform: translateY(-50%) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .q-dmg.is-on {
+    animation-duration: 0.5s;
+  }
+}

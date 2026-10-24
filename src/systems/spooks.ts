@@ -3,6 +3,7 @@ import {
   FOLLOW,
   hearSound,
   pacify,
+  revive,
   settle,
   SPOOK,
   stepSpook,
@@ -176,6 +177,16 @@ export function createSpookManager(
       let rudiLevel = 0;
       for (const s of list) {
         const st = s.state;
+        if (st.gone) {
+          // Defeated spooks come back at home once the chicken is away (spawn system may
+          // move them to a crevice first via `respawnAt`).
+          if (f.active) st.respawn -= f.dt;
+          if (st.respawn <= 0 && Math.hypot(st.homeX - f.chickenX, st.homeZ - f.chickenZ) > 6) {
+            revive(st, st.homeX, st.homeZ);
+          }
+          s.update(f.dt, f.time, f.chickenX, f.chickenZ);
+          continue;
+        }
         if (f.active) {
           // Rudi's cable only holds him while he is hostile; peaceful Rudi rolls along freely.
           input.canMove =

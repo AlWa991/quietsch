@@ -26,6 +26,12 @@ export interface Chicken {
   teleport(x: number, z: number): void;
   /** One-shot squash impulse (e.g. scream release). */
   kick(amount: number): void;
+  /** Beak strike animation for combo swing 1..3 (lunge + pitch, the finisher spins). */
+  peck(step: number): void;
+  /** Knockback impulse (m/s), decays quickly and slides along walls. */
+  push(vx: number, vz: number): void;
+  /** Snap the facing (e.g. towards the peck target). */
+  face(angle: number): void;
 }
 
 export function createChickenEntity(x: number, z: number): Chicken {
@@ -68,6 +74,10 @@ export function createChickenEntity(x: number, z: number): Chicken {
   let hop = 0;
   let impulse = 0;
   let moving = false;
+  let peckT = 1;
+  let peckStep = 1;
+  let pushX = 0;
+  let pushZ = 0;
 
   const self: Chicken = {
     object,
@@ -87,7 +97,10 @@ export function createChickenEntity(x: number, z: number): Chicken {
       const k = 1 - Math.exp(-ACCEL * dt);
       vel.x += (axis.x * SPEED * slow - vel.x) * k;
       vel.z += (axis.z * SPEED * slow - vel.z) * k;
-      moveAndSlide(grid, pos, vel.x * dt, vel.z * dt, BODY_RADIUS);
+      moveAndSlide(grid, pos, (vel.x + pushX) * dt, (vel.z + pushZ) * dt, BODY_RADIUS);
+      const pk = Math.exp(-9 * dt);
+      pushX *= pk;
+      pushZ *= pk;
 
       const speed = Math.hypot(vel.x, vel.z);
       moving = speed > 0.3;
@@ -97,6 +110,10 @@ export function createChickenEntity(x: number, z: number): Chicken {
         d = Math.atan2(Math.sin(d), Math.cos(d));
         facing += d * (1 - Math.exp(-TURN * dt));
       }
+
+      // Peck: quick forward lunge and head-down pitch; the third strike spins once.
+      peckT = Math.min(1, peckT + dt / 0.22);
+      const strike = Math.sin(peckT * Math.PI) * (peckT < 1 ? 1 : 0);
 
       // Hop locomotion: keep hopping until the current hop lands.
       if (moving || hop % 1 > 0.02) hop += dt * HOP_RATE;
@@ -113,10 +130,12 @@ export function createChickenEntity(x: number, z: number): Chicken {
       sq += impulse * Math.sin(time * 40);
       model.squash(sq);
       // Legs dangle and swing while airborne; beak opens with the scream charge.
-      model.pose(self.charge, moving ? Math.sin(ph * Math.PI * 2) : 0);
+      model.pose(Math.max(self.charge, strike), moving ? Math.sin(ph * Math.PI * 2) : 0);
 
-      object.position.set(pos.x, y, pos.z);
-      object.rotation.y = facing;
+      const lunge = strike * (peckStep === 3 ? 0.32 : 0.22);
+      model.group.rotation.x = strike * 0.55;
+      object.position.set(pos.x + Math.sin(facing) * lunge, y, pos.z + Math.cos(facing) * lunge);
+      object.rotation.y = facing + (peckStep === 3 && peckT < 1 ? peckT * Math.PI * 2 : 0);
       // Shiver while charging.
       model.group.rotation.z = self.charge > 0 ? Math.sin(time * 55) * 0.06 * self.charge : 0;
 
@@ -131,6 +150,18 @@ export function createChickenEntity(x: number, z: number): Chicken {
     },
     kick(amount) {
       impulse = Math.max(impulse, amount);
+    },
+    peck(step) {
+      peckT = 0;
+      peckStep = step;
+      impulse = Math.max(impulse, 0.15);
+    },
+    push(vx, vz) {
+      pushX = vx;
+      pushZ = vz;
+    },
+    face(angle) {
+      facing = angle;
     },
   };
   object.position.set(x, 0, z);

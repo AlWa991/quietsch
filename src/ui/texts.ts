@@ -224,3 +224,26 @@ export const RESULTS = {
   no: 'nein',
   replay: 'Nochmal spielen',
 } as const;
+
+/** P7 combat, horror and Ansturm texts. */
+export const COMBAT_T = {
+  double: 'Doppel!',
+  triple: 'Dreifach!',
+  streakSub: (bonus: number): string => `+${bonus} Federn`,
+  combo: (n: number): string => `Kombo ×${n}`,
+  immune: 'Klonk!',
+  immuneSub: 'Rudi ist gepanzert. Erst betäuben (langer Schrei) oder ins Kühlschranklicht locken.',
+  stunned: 'Betäubt!',
+  handRetreat: 'Die Hand verkriecht sich.',
+  rudiDown: 'Rudi ist geplatzt!',
+  rudiDownSub: 'Eine Staubwolke voller Federn.',
+  firstKill: 'Vertrieben!',
+  firstKillSub: 'Vertriebene Spuks kommen wieder. Nur Befriedete bleiben bei dir.',
+  hit: 'Autsch!',
+  hordeStart: 'Ansturm!',
+  hordeStartSub: 'Halte 40 Sekunden durch.',
+  hordeWin: 'Ansturm überstanden!',
+  hordeWinSub: '+100 Federn',
+  battery: 'Lampe',
+  frozen: 'Eingefroren!',
+} as const;

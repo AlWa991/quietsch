@@ -9,7 +9,7 @@ import { MISSION_IDS, type MissionId } from './core/missions';
 import { clearSave, loadGame } from './core/save';
 import { openOnce, secretFound } from './core/keller';
 import { peacefulCount } from './core/noise';
-import { CATCH_GRACE, tickGrace } from './core/spook-fsm';
+import { tickGrace } from './core/spook-fsm';
 import {
   canTransition,
   countLocks,
@@ -33,7 +33,7 @@ import { createPause, createShop } from './ui/shop';
 import { showChoice, showEnding, type Choice } from './ui/results';
 import { createBaitHud, createBattery, createCollarHud, createPrompt } from './ui/prompt';
 import { ATTIC_FLAG, createCollar, stepCollar, totalStars, wearCollar } from './core/attic';
-import { PROMPT, rankName, STORY_CARDS, T } from './ui/texts';
+import { COMBAT_T, PROMPT, rankName, STORY_CARDS, T } from './ui/texts';
 import { buildHouse, placeProps } from './world/builder';
 import { installHalloween } from './world/halloween';
 import {
@@ -45,10 +45,10 @@ import {
   roomIdAt,
   SOFA_SPOTS,
 } from './world/house-map';
-import { BODY_RADIUS, createChickenEntity } from './entities/chicken';
+import { createChickenEntity } from './entities/chicken';
 import { createHat } from './entities/hats';
 import { createCameraRig } from './systems/camera';
-import { boxFree, isBlocked, moveAndSlide, type CollisionGrid } from './systems/collision';
+import { boxFree, isBlocked, type CollisionGrid } from './systems/collision';
 import { createInput } from './systems/input';
 import { createLightning } from './systems/lightning';
 import { createSonarSystem } from './systems/sonar';
@@ -57,10 +57,16 @@ import { createProgress } from './systems/progress';
 import { createMissions, type Objective } from './systems/missions';
 import { createFlashlight } from './systems/flashlight';
 import { createBaitSystem } from './systems/bait';
+import { createCombat } from './systems/combat';
+import { createCombatHud } from './ui/combat-hud';
+import { PLAYER_HIT } from './core/combat';
+import { enemySfx } from './audio/enemies-sfx';
 import { BAIT } from './core/bait';
 import { createAmbience } from './audio/ambience';
 import { installAudioUnlock } from './audio/context';
 import { sfx } from './audio/sfx';
+import { createDread } from './audio/dread';
+import { createJumpscares, type ScareKind } from './horror/jumpscare';
 
 /** Test/debug API on window.__game.actions (used by e2e and the playtester). */
 export interface GameActions {
@@ -79,6 +85,14 @@ export interface GameActions {
   spooks(): SpookInfo[];
   /** Köder state: phase and landing point. */
   bait(): { phase: string; x: number; z: number; squeaks: number };
+  /** One peck press (J / left mouse). */
+  peck(): void;
+  /** Turn the chicken to face (x, z). */
+  faceTo(x: number, z: number): void;
+  /** Spooks defeated so far. */
+  kills(): number;
+  /** Jumpscares shown so far. */
+  scares(): number;
 }
 
 export interface SpookInfo {
@@ -89,6 +103,8 @@ export interface SpookInfo {
   targetX: number;
   targetZ: number;
   peaceful: boolean;
+  hp: number;
+  gone: boolean;
 }
 
 declare global {
@@ -151,6 +167,8 @@ function boot(root: HTMLElement): void {
   installAudioUnlock();
   const ambience = createAmbience();
   ambience.start();
+  const dread = createDread();
+  dread.start();
 
   const map = parseHouseMap(HOUSE_ASCII, HOUSE_ROOMS);
   const house = buildHouse(map, reveal);
@@ -280,41 +298,37 @@ function boot(root: HTMLElement): void {
   let freeze = 0;
   let invulnerable = 0;
   let afterFreeze: (() => void) | null = null;
+  /** Hitstop (s): the world holds for a few frames on impact. */
+  let hitstop = 0;
   const spooks = createSpookManager(ctx.scene, reveal, wallsOnly, {
     onCaught(s) {
       if (!playing() || invulnerable > 0) return;
-      invulnerable = CATCH_GRACE;
+      invulnerable = PLAYER_HIT.grace;
       const room = roomIdAt(chicken.pos.x, chicken.pos.z);
       const res = progress.caught(room);
       store.emit({ type: 'caught', by: s.state.kind });
       store.emit({ type: 'heart-lost', by: s.state.kind });
       store.emit({ type: 'feathers', amount: -res.lost });
       sfx.caught();
+      enemySfx.playerHurt();
       rig.shake(0.35, 0.25);
-      // Freeze-frame: the world stops, the camera snaps onto the spook, then the knock-back.
-      rig.closeUp((s.state.x * 2 + chicken.pos.x) / 3, (s.state.z * 2 + chicken.pos.z) / 3, FREEZE);
+      rig.punch(4);
       reveal.hit(s.reveal);
-      freeze = FREEZE;
-      ui.toast(T.caught, T.caughtSub(Math.round(progress.stats.lossShare * 100)));
-      if (res.lost > 0) {
-        const p = toScreen(chicken.pos.x, 1.2, chicken.pos.z);
-        ui.spawnFloat(`−${res.lost}`, p.sx, p.sy, 'danger');
-      }
-      const sx = s.state.x;
-      const sz = s.state.z;
-      afterFreeze = () => {
+      hitstop = Math.max(hitstop, PLAYER_HIT.hitstop);
+      const p = toScreen(chicken.pos.x, 1.2, chicken.pos.z);
+      combatHud.number(res.lost > 0 ? `−${res.lost}` : COMBAT_T.hit, p.sx, p.sy, 'hurt');
+      // Knock the chicken away from the attacker so it can strike back or flee.
+      const dx = chicken.pos.x - s.state.x;
+      const dz = chicken.pos.z - s.state.z;
+      const len = Math.hypot(dx, dz) || 1;
+      chicken.push((dx / len) * PLAYER_HIT.knockback * 9, (dz / len) * PLAYER_HIT.knockback * 9);
+      const afterHit = (): void => {
         if (res.panic) {
           // Hearts are full right away; the card holds the chicken for a breath (1.5 s).
           store.set({ hearts: store.get().maxHearts });
           ui.hud.sync();
           teleportTo(korb.x + 0.9, korb.z - 0.6);
           void card('panic');
-        } else {
-          // Knock the chicken away from the spook so it can flee.
-          const dx = chicken.pos.x - sx;
-          const dz = chicken.pos.z - sz;
-          const len = Math.hypot(dx, dz) || 1;
-          moveAndSlide(grid, chicken.pos, (dx / len) * 1.2, (dz / len) * 1.2, BODY_RADIUS);
         }
         // Geisterlicht tutorial: the first catch anywhere explains the night light. Once.
         if (!store.get().flags['card:peaceHint']) {
@@ -322,6 +336,19 @@ function boot(root: HTMLElement): void {
           void card('peaceHint');
         }
       };
+      if (res.panic) {
+        // Last heart: freeze-frame close-up on the spook, then the Korb.
+        ui.toast(T.caught, T.caughtSub(Math.round(progress.stats.lossShare * 100)));
+        rig.closeUp(
+          (s.state.x * 2 + chicken.pos.x) / 3,
+          (s.state.z * 2 + chicken.pos.z) / 3,
+          FREEZE,
+        );
+        freeze = FREEZE;
+        afterFreeze = afterHit;
+      } else {
+        afterHit();
+      }
     },
     onDelivered(s) {
       // Map spawns have stable indices: remember them so a reload keeps them in the Korb.
@@ -341,6 +368,65 @@ function boot(root: HTMLElement): void {
   for (const p of SOFA_SPOTS) spooks.spawn('hand', p.x, p.z + 0.7);
   /** Spooks from the map (wrong-box socks spawn later and are not persisted). */
   const baseSpooks = spooks.list.length;
+
+  // --- Jumpscares (P7): each scripted scare fires once per save ----------------------------
+  const scares = createJumpscares(root, {
+    shake: (a, t) => rig.shake(a, t),
+    flash: (v) => postfx.setFlash(v),
+    silence: (t) => dread.silence(t),
+  });
+  const scareOnce = (kind: ScareKind): void => {
+    const f = store.get().flags;
+    if (f[`scare:${kind}`]) return;
+    f[`scare:${kind}`] = true;
+    void scares.jumpscare(kind);
+  };
+
+  // --- Combat (P7) ------------------------------------------------------------------------
+  const combatHud = createCombatHud(root);
+  let firstKill = false;
+  const combat = createCombat({
+    scene: ctx.scene,
+    camera: ctx.camera,
+    spooks,
+    hud: combatHud,
+    canMove: (x, z) => !isBlocked(wallsOnly, x, z),
+    lights: (x, z) =>
+      missionsRef?.lights(
+        x,
+        z,
+        ctx.clock.elapsedTime,
+        chicken.pos.x,
+        chicken.pos.z,
+        chicken.facing,
+      ) ?? 0,
+    baseDamage: () => ((store.get().upgrades.schnabel ?? 0) > 0 ? 2 : 1),
+    chicken,
+    toScreen,
+    hitstop: (t) => (hitstop = Math.max(hitstop, t)),
+    shake: (a, t) => rig.shake(a, t),
+    punch: (deg) => rig.punch(deg),
+    toast: (title, sub) => ui.toast(title, sub),
+    addFeathers: (n, x, z) => progress.addFeathers(n, x, z),
+    addXp: (n) => progress.addXp(n),
+    onDefeat() {
+      if (!firstKill) {
+        firstKill = true;
+        ui.toast(COMBAT_T.firstKill, COMBAT_T.firstKillSub);
+      }
+    },
+    respawnDelay: 25,
+  });
+  const peck = (): void => {
+    if (playing()) combat.press();
+  };
+  window.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return;
+    const t = e.target;
+    // Clicks on UI controls are not pecks.
+    if (t instanceof Element && t.closest('button, a, input, .q-shop, .q-story, .q-title')) return;
+    peck();
+  });
 
   // The Köder flies over furniture, not through walls.
   const bait = createBaitSystem(ctx.scene, (x, z) => !isBlocked(wallsOnly, x, z));
@@ -586,6 +672,9 @@ function boot(root: HTMLElement): void {
       origin: { x: chicken.pos.x, y: chicken.pos.z },
       strength: radius / st.maxRadius,
     });
+    if (roomIdAt(chicken.pos.x, chicken.pos.z) === 'wohnzimmer' && hold >= SONAR.tapThreshold) {
+      scareOnce('hand');
+    }
     missions.onScream(
       ctx.clock.elapsedTime,
       roomIdAt(chicken.pos.x, chicken.pos.z),
@@ -615,7 +704,9 @@ function boot(root: HTMLElement): void {
 
   input.onKey((code) => {
     if (!playing()) return;
-    if (code === 'KeyE') {
+    if (code === 'KeyJ') {
+      peck();
+    } else if (code === 'KeyE') {
       const it = missions.nearest(chicken.pos.x, chicken.pos.z);
       if (it) missions.interact(it);
       else if (atKorb()) shop.open();
@@ -724,6 +815,7 @@ function boot(root: HTMLElement): void {
 
   // --- Loop --------------------------------------------------------------------------
   const axis = { x: 0, z: 0 };
+  const dreadCtx = { playTime: 0, inKorb: false, danger: 0, room: null as string | null };
   const frame = {
     dt: 0,
     time: 0,
@@ -751,6 +843,10 @@ function boot(root: HTMLElement): void {
   ctx.renderer.setAnimationLoop(() => {
     const rawDt = Math.min(ctx.clock.getDelta(), 0.1);
     let dt = rawDt;
+    if (hitstop > 0) {
+      hitstop -= rawDt;
+      dt = 0;
+    }
     if (freeze > 0) {
       freeze -= rawDt;
       dt = 0;
@@ -802,8 +898,16 @@ function boot(root: HTMLElement): void {
     frame.active =
       dt > 0 && (active || phase === 'finale' || phase === 'choice' || phase === 'ending');
     spooks.update(frame);
+    // Fridge power-on wakes Rudi: the fridge jumpscare.
+    if (active) {
+      for (const sp of spooks.list) {
+        if (sp.state.kind === 'rudi' && sp.state.wake > 0) scareOnce('rudi');
+      }
+    }
+    combat.update(active ? dt : 0, time);
     // Entering the Keller: its sock cannot catch for a moment (no ambush at the stairs).
     if (room === 'keller' && lastRoom !== 'keller') {
+      if (active) scareOnce('spinne');
       for (const sp of spooks.list) {
         if (inKeller(sp.state.x, sp.state.z)) sp.state.cooldown = Math.max(sp.state.cooldown, 3);
       }
@@ -820,6 +924,11 @@ function boot(root: HTMLElement): void {
       ? Math.min(1, Math.max(0, (8 - spooks.nearest) / 6.5) + (spooks.chasing ? 0.25 : 0))
       : 0;
     ambience.setDanger(danger);
+    dreadCtx.playTime = store.get().time;
+    dreadCtx.inKorb = atKorb();
+    dreadCtx.danger = danger;
+    dreadCtx.room = room;
+    dread.update(active ? dt : 0, dreadCtx);
 
     const korbNear = atKorb();
     if (active) {
@@ -874,6 +983,7 @@ function boot(root: HTMLElement): void {
       if (doorbellDue(s.time, locks, s.flags.doorbell === true)) {
         s.flags.doorbell = true;
         sfx.doorbell();
+        scareOnce('socke');
         missions.door.showShadow(4.5);
         ui.toast(T.doorbell);
       }
@@ -951,7 +1061,13 @@ function boot(root: HTMLElement): void {
         targetX: s.targetX,
         targetZ: s.targetZ,
         peaceful: s.peaceful,
+        hp: s.hp,
+        gone: s.gone,
       })),
+    peck: () => combat.press(),
+    faceTo: (x, z) => chicken.face(Math.atan2(x - chicken.pos.x, z - chicken.pos.z)),
+    kills: () => combat.kills,
+    scares: () => scares.count,
     bait: () => ({
       phase: bait.state.phase,
       x: bait.state.toX,

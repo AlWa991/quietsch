@@ -4,11 +4,12 @@
 // recent), 'hand' (static sofa ambush). Peaceful spooks follow the chicken ('follow') and
 // settle somewhere ('rest').
 
+import { ENEMY_HP, type Health } from './combat';
 import type { SpookKind } from './types';
 
 export type SpookMode = 'wander' | 'alert' | 'chase' | 'return' | 'dormant' | 'follow' | 'rest';
 
-export interface SpookState {
+export interface SpookState extends Health {
   kind: SpookKind;
   mode: SpookMode;
   x: number;
@@ -31,6 +32,18 @@ export interface SpookState {
   peaceful: boolean;
   /** Rudi: seconds left of the wake-up flicker after power-on (deaf and still meanwhile). */
   wake: number;
+  /** Stunned by the Schallwelle (s): frozen, harmless, takes double damage. */
+  stun: number;
+  /** Frozen by the flashlight cone (s): frozen and harmless. */
+  freeze: number;
+  /** Defeated and despawned (pooled until it respawns). */
+  gone: boolean;
+  /** Seconds until a gone spook may respawn (spawn system). */
+  respawn: number;
+  /** Height above the floor (m): spider on the ceiling, pumpkin hop. */
+  y: number;
+  /** Kind-specific scratch value (teddy swing phase, pumpkin fuse, spider jump count). */
+  aux: number;
 }
 
 export interface SpookInput {
@@ -130,7 +143,41 @@ export function createSpook(x: number, z: number, kind: SpookKind = 'socke'): Sp
     scare: false,
     peaceful: false,
     wake: 0,
+    stun: 0,
+    freeze: 0,
+    gone: false,
+    respawn: 0,
+    y: 0,
+    aux: 0,
+    hp: ENEMY_HP[kind],
+    maxHp: ENEMY_HP[kind],
+    flash: 0,
+    bar: 0,
+    kbx: 0,
+    kbz: 0,
   };
+}
+
+/** Bring a gone spook back at (x, z) with full health, hostile and wandering. */
+export function revive(s: SpookState, x: number, z: number): void {
+  s.gone = false;
+  s.x = x;
+  s.z = z;
+  s.homeX = x;
+  s.homeZ = z;
+  s.targetX = x;
+  s.targetZ = z;
+  s.hp = s.maxHp;
+  s.mode = 'wander';
+  s.timer = 0;
+  s.cooldown = 1;
+  s.stun = 0;
+  s.freeze = 0;
+  s.flash = 0;
+  s.bar = 0;
+  s.kbx = 0;
+  s.kbz = 0;
+  s.scare = false;
 }
 
 const isPeaceful = (s: SpookState): boolean => s.mode === 'follow' || s.mode === 'rest';
@@ -160,7 +207,7 @@ export function hearSound(s: SpookState, originX: number, originZ: number): void
 }
 
 /** Move towards (tx, tz); slides along an axis when blocked. Returns remaining distance. */
-function moveTowards(
+export function moveTowards(
   s: SpookState,
   tx: number,
   tz: number,
@@ -237,13 +284,32 @@ export function settle(s: SpookState, x: number, z: number): void {
   s.homeZ = z;
 }
 
-export type SpookEvent = 'caught' | null;
+/**
+ * Tick result. 'caught' = contact/attack hit the chicken; 'swing' = teddy starts its telegraph;
+ * 'explode' = pumpkin detonates at its position (manager damages everything in range);
+ * 'drop' = spider lets go of the ceiling; 'beep' = pumpkin fuse blink.
+ */
+export type SpookEvent = 'caught' | 'swing' | 'explode' | 'drop' | 'beep' | null;
 
 /** Advance one tick. Returns 'caught' on the tick the spook catches the chicken, else null. */
+/** FSMs of the P7 enemies (teddy, kuerbis, spinne) register here (core/*-fsm.ts). */
+export const EXTRA_STEPS: Partial<
+  Record<SpookKind, (s: SpookState, input: SpookInput) => SpookEvent>
+> = {};
+
 export function stepSpook(s: SpookState, input: SpookInput): SpookEvent {
+  if (s.gone) return null;
   if (s.mode === 'follow' || s.mode === 'rest') return stepPeaceful(s, input);
+  // Stunned (Schallwelle) or frozen (flashlight): no movement, no catch.
+  if (s.stun > 0 || s.freeze > 0) {
+    s.stun = Math.max(0, s.stun - input.dt);
+    s.freeze = Math.max(0, s.freeze - input.dt);
+    return null;
+  }
   if (s.kind === 'rudi') return stepRudi(s, input);
   if (s.kind === 'hand') return stepHand(s, input);
+  const ext = EXTRA_STEPS[s.kind];
+  if (ext) return ext(s, input);
   return stepSocke(s, input);
 }
 

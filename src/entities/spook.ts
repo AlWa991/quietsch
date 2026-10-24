@@ -36,6 +36,44 @@ export function createSpookEntity(
 /** Peaceful spooks glow warm and stay visible so the player sees the followers. */
 const PEACE_TINT = new THREE.Color(0xffd9a0);
 const SOCK_EMISSIVE = new THREE.Color(0xb8d4f0);
+const FLASH_WHITE = new THREE.Color(0xffffff);
+const HURT_RED = new THREE.Color(0xff2a3a);
+const ICE = new THREE.Color(0x9fdcff);
+
+/** Shake offset (m) for damage stage, hit flash and stun; 0 when healthy. */
+export function hurtJitter(state: SpookState, time: number): number {
+  const stage = state.hp >= state.maxHp ? 0 : state.hp / state.maxHp > 0.5 ? 1 : 2;
+  return (
+    Math.sin(time * 61) * (stage * 0.012 + state.flash * 0.25) +
+    (state.stun > 0 ? Math.sin(time * 9) * 0.04 : 0)
+  );
+}
+
+/**
+ * Hit feedback on one material: white flash, frozen ice tint, red damage glow at low HP.
+ * `base` / `baseIntensity` are the normal emissive look. Allocation-free.
+ */
+export function applyHurtTint(
+  m: THREE.MeshStandardMaterial,
+  state: SpookState,
+  base: THREE.Color,
+  baseIntensity: number,
+  time: number,
+): void {
+  if (state.flash > 0) {
+    m.emissive.copy(FLASH_WHITE);
+    m.emissiveIntensity = 2.5 + state.flash * 12;
+  } else if (state.freeze > 0) {
+    m.emissive.copy(ICE);
+    m.emissiveIntensity = 1.4;
+  } else if (!state.peaceful && state.hp / state.maxHp <= 0.5) {
+    m.emissive.copy(base).lerp(HURT_RED, 0.55 + 0.25 * Math.sin(time * 14));
+    m.emissiveIntensity = baseIntensity * 1.3;
+  } else {
+    m.emissive.copy(base);
+    m.emissiveIntensity = baseIntensity;
+  }
+}
 
 function createSocke(x: number, z: number, reveal: RevealSystem): Spook {
   const state = createSpook(x, z, 'socke');
@@ -114,9 +152,10 @@ function createSocke(x: number, z: number, reveal: RevealSystem): Spook {
     reveal: rev,
     dist: Infinity,
     update(_dt, time, cx, cz) {
-      object.position.set(state.x, 0.14 + Math.sin(time * 2.3) * 0.08, state.z);
-      object.rotation.y = state.heading;
-      face.rotation.y = -state.heading;
+      const jit = hurtJitter(state, time);
+      object.position.set(state.x + jit, 0.14 + Math.sin(time * 2.3) * 0.08, state.z);
+      object.rotation.y = state.heading + (state.stun > 0 ? time * 6 : 0);
+      face.rotation.y = -object.rotation.y;
       inner.rotation.z = Math.sin(time * 1.7) * 0.08;
       inner.rotation.x = state.mode === 'chase' ? 0.3 : 0;
       foot.rotation.x = Math.PI / 2 + 0.12 + Math.sin(time * 3.4) * 0.1;
@@ -129,13 +168,15 @@ function createSocke(x: number, z: number, reveal: RevealSystem): Spook {
       // Visible only when revealed or inside the chicken's glow; peaceful ones always faintly.
       const peaceful = state.peaceful;
       const glow = Math.min(1, Math.max(0, (3 - self.dist) / 1.6));
-      const v = Math.max(reveal.visibility(rev), glow, peaceful ? 0.75 : 0);
-      bodyMat.emissive.copy(peaceful ? PEACE_TINT : SOCK_EMISSIVE);
+      // A sock in a fight stays visible: hit, HP bar shown, stunned or frozen.
+      const fight = state.bar > 0 || state.stun > 0 || state.freeze > 0 ? 0.9 : 0;
+      const v = Math.max(reveal.visibility(rev), glow, peaceful ? 0.75 : 0, fight);
+      applyHurtTint(bodyMat, state, peaceful ? PEACE_TINT : SOCK_EMISSIVE, 0.9, time);
       bodyMat.opacity = 0.78 * v;
       stripeMat.opacity = 0.85 * v;
       eyeMat.opacity = v;
       glintMat.opacity = v;
-      object.visible = v > 0.01;
+      object.visible = v > 0.01 && !state.gone;
     },
   };
   return self;
@@ -206,6 +247,7 @@ function createRudi(x: number, z: number, reveal: RevealSystem): Spook {
   object.position.set(x, 0, z);
   const rev = reveal.add(object, 'spook', 'rudi');
   let wasPeaceful = false;
+  const shellBase = new THREE.Color(0x5a0e16);
 
   const self: Spook = {
     state,
@@ -217,8 +259,12 @@ function createRudi(x: number, z: number, reveal: RevealSystem): Spook {
       const flick = state.wake > 0 && Math.sin(time * 38) < 0.1;
       const awake = state.mode !== 'dormant' && !flick;
       const driving = state.mode === 'chase' && state.noiseAge < 1.1;
-      object.position.set(state.x, driving ? Math.abs(Math.sin(time * 30)) * 0.02 : 0, state.z);
-      object.rotation.y = state.heading;
+      object.position.set(
+        state.x + hurtJitter(state, time),
+        driving ? Math.abs(Math.sin(time * 30)) * 0.02 : 0,
+        state.z,
+      );
+      object.rotation.y = state.heading + (state.stun > 0 ? Math.sin(time * 5) * 0.6 : 0);
       inner.rotation.z = driving ? Math.sin(time * 40) * 0.03 : 0;
       reveal.setBounds(rev, state.x, state.z, 0.4);
       self.dist = Math.hypot(cx - state.x, cz - state.z);
@@ -236,8 +282,9 @@ function createRudi(x: number, z: number, reveal: RevealSystem): Spook {
         light.color.setHex(wasPeaceful ? 0xffb060 : 0xff2030);
         eyeMat.color.setHex(wasPeaceful ? 0xffd090 : 0xff2030);
         glowMat.color.setHex(wasPeaceful ? 0xffb060 : 0xff3a20);
-        shell.emissive.setHex(wasPeaceful ? 0x8a4a10 : 0x5a0e16);
+        shellBase.setHex(wasPeaceful ? 0x8a4a10 : 0x5a0e16);
       }
+      applyHurtTint(shell, state, shellBase, 0.6, time);
       light.intensity = !awake
         ? 0
         : state.peaceful
@@ -245,7 +292,7 @@ function createRudi(x: number, z: number, reveal: RevealSystem): Spook {
           : state.mode === 'chase'
             ? 4 + Math.sin(time * 20)
             : 1.2;
-      object.visible = true;
+      object.visible = !state.gone;
     },
   };
   return self;
@@ -289,6 +336,8 @@ function createHand(x: number, z: number, reveal: RevealSystem): Spook {
   let size = 1;
   let wasPeaceful = false;
   let wasScare = false;
+  const skinBase = new THREE.Color(0x506a58);
+  let skinIntensity = 0.7;
 
   const self: Spook = {
     state,
@@ -310,10 +359,11 @@ function createHand(x: number, z: number, reveal: RevealSystem): Spook {
         // Peaceful hand: warm skin glow, fully out of the floor, waddling after the chicken.
         wasPeaceful = peaceful;
         wasScare = scare;
-        skin.emissive.setHex(peaceful ? 0xc07a30 : scare ? 0x8fbf9c : 0x506a58);
-        skin.emissiveIntensity = peaceful ? 0.9 : scare ? 0.8 : 0.7;
+        skinBase.setHex(peaceful ? 0xc07a30 : scare ? 0x8fbf9c : 0x506a58);
+        skinIntensity = peaceful ? 0.9 : scare ? 0.8 : 0.7;
       }
-      object.position.set(state.x, (-1.25 + rise * 1.25) * size, state.z);
+      applyHurtTint(skin, state, skinBase, skinIntensity, time);
+      object.position.set(state.x + hurtJitter(state, time), (-1.25 + rise * 1.25) * size, state.z);
       // Scare: the hand faces the camera (leaning away from it, perpendicular to the view) so
       // the whole palm and fingers fill the screen. Otherwise lunge towards the chicken while
       // grabbing and tremble while emerging.
@@ -328,7 +378,7 @@ function createHand(x: number, z: number, reveal: RevealSystem): Spook {
       arm.rotation.z = peaceful && m === 'follow' ? Math.sin(time * 7) * 0.18 : 0;
       reveal.setBounds(rev, state.x, state.z, 0.4);
       self.dist = Math.hypot(cx - state.x, cz - state.z);
-      object.visible = rise > 0.05;
+      object.visible = rise > 0.05 && !state.gone;
     },
   };
   return self;

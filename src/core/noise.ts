@@ -23,6 +23,9 @@ export const PACIFY_LIGHTS: Record<SpookKind, number> = {
   socke: LIGHT.night | LIGHT.fridge | LIGHT.lightning | LIGHT.torch,
   rudi: LIGHT.fridge | LIGHT.torch,
   hand: LIGHT.lightning,
+  teddy: LIGHT.night | LIGHT.lightning | LIGHT.torch,
+  kuerbis: LIGHT.night | LIGHT.torch,
+  spinne: LIGHT.lightning | LIGHT.torch,
 };
 
 export const isPeacefulMode = (mode: SpookMode): boolean => mode === 'follow' || mode === 'rest';
