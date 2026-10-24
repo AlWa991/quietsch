@@ -45,3 +45,10 @@ Dread-Layer (permanent, `src/audio/dread.ts`): zufällige Knarzer, Schritte übe
 
 ## 6. Reihenfolge (jeder Schritt commit + grün)
 1. Karte breiter + Kollision  2. Schnabelhieb, HP, Hitstop, Drops, Streaks, bestehende 3 Gegner angreifbar  3. Jumpscare-System (Overlay, Stings, 7 Trigger) + Dread-Layer  4. Teddy, Kürbis, Spinne  5. Schallwelle + Lampe-Freeze + Befrieden-Pfad  6. Ansturm  7. Shop/Balance/Ergebnis  8. Playtest 4 (fresh) → Fixes → Deploy
+
+## 7. Halloween-Set-Dressing (Alex, 24.10.2026, Nachtrag)
+- **Kürbisse**: geschnitzte Jack-o'-Lanterns als leuchtende Props (flackerndes Innenlicht) in jedem Raum, 2–3 auf der Veranda vor dem Fenster sichtbar, Kürbis-Stapel im Flur neben der Haustür.
+- **Geister**: friedliche Laken-Geister (weiß, halbtransparent, wabernd) als Ambient-Drifter: ziehen draußen vor den Fenstern vorbei, einer schwebt im Dachboden, einer verschwindet beim Reveal (Watcher). Kein Kampf, nur Stimmung.
+- **Deko**: Spinnweben in Ecken (transparente Quads), Kerzen mit Flackerlicht, Fledermäuse, die beim Blitz als Silhouetten vor dem Fenster vorbeiflattern, Girlande mit Papier-Geistern im Kinderzimmer, Skelett auf dem Sofa, Süßigkeitenschale.
+- **Süßes** (neues Pickup): Bonbons in Schalen/verstreut, heilen 1 Herz, Combo-Sound „Süßes oder Saures“; HUD-Zähler.
+- **Titel**: Kürbis-Lichter und ein vorbeiziehender Geist im Titelbild; Untertitel „Süßes, Saures, Schreien“.
