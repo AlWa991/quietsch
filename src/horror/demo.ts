@@ -19,7 +19,7 @@ export function mountScareDemo(root: HTMLElement): void {
 
   const flashEl = document.createElement('div');
   flashEl.style.cssText =
-    'position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:950;transition:opacity 0.1s';
+    'position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:850';
   root.append(flashEl);
 
   const scares = createJumpscares(root, {
@@ -36,11 +36,7 @@ export function mountScareDemo(root: HTMLElement): void {
       );
     },
     flash(v) {
-      flashEl.style.transition = 'none';
       flashEl.style.opacity = String(v);
-      void flashEl.offsetWidth;
-      flashEl.style.transition = 'opacity 0.1s';
-      flashEl.style.opacity = '0';
     },
     silence(seconds) {
       console.info(`[scare] silence ${seconds}s`);

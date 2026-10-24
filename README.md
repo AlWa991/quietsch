@@ -10,16 +10,16 @@ Spielbar direkt im Browser, ohne Installation. Repository: https://github.com/Al
 
 ## Steuerung
 
-| Taste              | Aktion                                              |
-| ------------------ | --------------------------------------------------- |
-| WASD / Pfeiltasten | Bewegen                                             |
-| Leertaste kurz     | Quietscher (kleiner Sonar-Ring)                     |
-| Leertaste halten   | Langer Schrei (großer Ring, zeigt den ganzen Raum)  |
-| E                  | Interagieren                                        |
-| F                  | Taschenlampe (sobald freigeschaltet)                |
-| Shift              | Köder werfen (sobald im Shop gekauft)               |
-| Q                  | Bellos Halsband (sobald auf dem Dachboden gefunden) |
-| Esc                | Shop / Pause                                        |
+| Taste               | Aktion                                                |
+| ------------------- | ----------------------------------------------------- |
+| WASD / Pfeiltasten  | Bewegen                                               |
+| Leertaste kurz      | Quietscher (kleiner Sonar-Ring)                       |
+| Leertaste halten    | Langer Schrei (großer Ring, zeigt den ganzen Raum)    |
+| E                   | Interagieren                                          |
+| F                   | Taschenlampe (sobald freigeschaltet)                  |
+| Shift               | Köder werfen (sobald im Shop gekauft)                 |
+| Q                   | Bellos Halsband (sobald auf dem Dachboden gefunden)   |
+| Esc                 | Shop / Pause                                          |
 | J / linke Maustaste | Schnabelhieb (3er-Kombo) gegen Socken, Hände und Rudi |
 
 ## Features und Belohnungssystem

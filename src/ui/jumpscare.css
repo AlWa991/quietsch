@@ -1,7 +1,7 @@
 .js-overlay {
   position: fixed;
   inset: 0;
-  z-index: 900;
+  z-index: 1000; /* above every flash element */
   pointer-events: none;
   display: none;
   background: #000;
@@ -9,6 +9,9 @@
   --js-dur: 500ms;
   --js-jit: 14px;
   --js-ab: 7px;
+}
+.js-overlay.js-dark {
+  display: block;
 }
 .js-overlay.js-on {
   display: block;
