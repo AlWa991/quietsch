@@ -121,6 +121,8 @@ if (params.get('ui') === '1') {
   void import('./ui/demo').then((m) => m.mountUiDemo(uiRoot));
 } else if (params.get('audio') === '1') {
   void import('./audio/demo').then((m) => m.mountAudioDemo(uiRoot));
+} else if (params.get('scare') === '1') {
+  void import('./horror/demo').then((m) => m.mountScareDemo(uiRoot));
 } else {
   boot(uiRoot);
 }
