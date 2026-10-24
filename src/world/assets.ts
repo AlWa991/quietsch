@@ -407,9 +407,9 @@ function primParts(key: PrimKey): THREE.BufferGeometry[] {
     case 'stairs':
       // Steps leading down from the hollow wall into the Keller (walkable, flat).
       return [
-        bx(0.9, 0.12, 0.3, 0, 0, -0.32, STEEL),
-        bx(0.9, 0.08, 0.3, 0, 0, 0, WOOD),
-        bx(0.9, 0.04, 0.3, 0, 0, 0.32, STEEL),
+        bx(2.9, 0.12, 0.3, 0, 0, -0.32, STEEL),
+        bx(2.9, 0.08, 0.3, 0, 0, 0, WOOD),
+        bx(2.9, 0.04, 0.3, 0, 0, 0.32, STEEL),
       ];
   }
 }

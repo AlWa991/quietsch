@@ -317,10 +317,11 @@ function buildKind(def: InteractableDef, group: THREE.Group): Parts {
       // Low wall panel (cutaway height) with vertical boards; sinks into the floor when opened.
       const panel = new THREE.Group();
       const glowMat = mat(0x34302e, 0xffb070, 0);
-      panel.add(box(0.98, 0.36, 0.96, glowMat, 0, 0.18, 0));
-      for (const bx of [-0.33, 0, 0.33]) {
-        panel.add(box(0.03, 0.3, 0.98, mat(0x241e1a), bx + 0.16, 0.18, 0));
-      }
+      // Three cells wide (P7: every passage is 3 m).
+      panel.add(box(2.98, 0.36, 0.96, glowMat, 0, 0.18, 0));
+      const boards = mat(0x241e1a);
+      for (let i = 0; i < 9; i++)
+        panel.add(box(0.03, 0.3, 0.98, boards, -1.33 + i * 0.33, 0.18, 0));
       group.add(panel);
       return { glowMat, sink: { object: panel, openY: -0.42 } };
     }

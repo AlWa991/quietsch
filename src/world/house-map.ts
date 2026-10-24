@@ -1,32 +1,32 @@
 import type { RoomDef } from '@/core/types';
 
 /**
- * ASCII floor plan, 57x38 cells, 1 cell = 1 m. See GridCell in core/types.ts for the legend.
- * Rows 0-31 are the house; rows 32-37 are the secret Keller below the Flur, reached through
- * the hollow wall 'H' in the south wall. The Dachboden (x >= 49) is a separate island reached
+ * ASCII floor plan, 59x39 cells, 1 cell = 1 m. See GridCell in core/types.ts for the legend.
+ * Rows 0-31 are the house; rows 32-38 are the secret Keller below the Flur, reached through
+ * the 3-wide hollow wall 'HHH' in the south wall. The Dachboden (x >= 49) is a separate island reached
  * by the ladder in the Flur (teleport = climbing).
  */
 export const HOUSE_ASCII: string[] = [
-  '       ##################################       ',
-  '       #................T.........T.....#        ########',
-  '       #................................#        #......#',
-  '       #.....S..........................#        #.T..T.#',
-  '       #................................#        #......#',
-  '       #........L.......................#        #......#',
-  '       #................................#        #......#',
-  '       #..............................S.#        #.....T#',
-  '       #................................#        #T.....#',
-  '       #................................#        ########',
-  '       #................................#       ',
-  '#######################DD#######################',
+  '       ##################################',
+  '       #................T.........T.....#        ##########',
+  '       #................................#        #........#',
+  '       #.....S..........................#        #.T..T...#',
+  '       #................................#        #........#',
+  '       #........L.......................#        #........#',
+  '       #................................#        #........#',
+  '       #..............................S.#        #.....T..#',
+  '       #................................#        #T.......#',
+  '       #................................#        ##########',
+  '       #................................#',
+  '#######################DDD######################',
   '#...............#..........T...#..........T....#',
   '#...............#..............#...............#',
   '#............T..#..............#.............L.#',
   '#...S...........#..............#...............#',
   '#...............#..............#...............#',
-  '#...............#..............#...............#',
+  '#...............D..............D...............#',
   '#.........T.....D..............D...............#',
-  '#...T...........#..............#...............#',
+  '#...T...........D..............D...............#',
   '#...............#..............#.......S.......#',
   '#T..............#..............#...............#',
   '#...............#.....L........#...............#',
@@ -38,13 +38,14 @@ export const HOUSE_ASCII: string[] = [
   '#..T............#......K.......#...............#',
   '#.......T.......#..............#..............T#',
   '#...............#..........T...#...............#',
-  '###################H############################',
-  '                 #......#                       ',
-  '                 #.....T#                       ',
-  '                 #......#                       ',
-  '                 #...T..#                       ',
-  '                 #.....S#                       ',
-  '                 ########                       ',
+  '##################HHH###########################',
+  '                 #........#',
+  '                 #.....T..#',
+  '                 #........#',
+  '                 #...T....#',
+  '                 #.....S..#',
+  '                 #........#',
+  '                 ##########',
 ];
 
 /** Room bounds in cell coordinates (interior floor only). */
@@ -53,8 +54,8 @@ export const HOUSE_ROOMS: RoomDef[] = [
   { id: 'kinderzimmer', name: 'Kinderzimmer', bounds: { x: 1, y: 12, w: 15, h: 19 } },
   { id: 'kueche', name: 'Küche', bounds: { x: 32, y: 12, w: 15, h: 19 } },
   { id: 'wohnzimmer', name: 'Wohnzimmer', bounds: { x: 8, y: 1, w: 32, h: 10 } },
-  { id: 'keller', name: 'Keller', bounds: { x: 18, y: 32, w: 6, h: 5 } },
-  { id: 'dachboden', name: 'Dachboden', bounds: { x: 50, y: 2, w: 6, h: 7 } },
+  { id: 'keller', name: 'Keller', bounds: { x: 18, y: 32, w: 8, h: 6 } },
+  { id: 'dachboden', name: 'Dachboden', bounds: { x: 50, y: 2, w: 8, h: 7 } },
 ];
 
 /** Every wall from this column on belongs to the Dachboden and stays low (diorama view). */
@@ -67,7 +68,7 @@ export const LADDER_ARRIVAL = { x: 27.5, z: 13.6 } as const;
 /** Horizontal wall runs on this row and below are low cutaways (diorama view from the south). */
 export const CUTAWAY_ROW = 31;
 
-/** The hollow wall cell between Flur and Keller. */
+/** Centre of the 3-cell hollow wall between Flur and Keller (cells x-1..x+1 open together). */
 export const HOLLOW_CELL = { x: 19, y: 31 } as const;
 
 export type InteractableKind =

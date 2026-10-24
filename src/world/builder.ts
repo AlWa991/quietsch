@@ -502,15 +502,25 @@ export function buildHouse(map: HouseMap, reveal: RevealSystem): HouseBuild {
       group.add(f);
     }),
   );
+  const doorRuns: { lx: number; ly: number; n: number; light: DoorLight }[] = [];
   for (const d of doorCells) {
     const f = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), doorFloorMat);
     f.rotation.x = -Math.PI / 2;
     f.position.set(d.x + 0.5, 0.001, d.y + 0.5);
     group.add(f);
-    // Merge horizontally adjacent door cells into one light.
-    const left = doors.find((o) => Math.abs(o.z - (d.y + 0.5)) < 0.01 && o.x + 0.5 === d.x);
-    if (left) left.x += 0.5;
-    else doors.push({ x: d.x + 0.5, z: d.y + 0.5 });
+    // One light per doorway: merge door cells adjacent to an already seen one (either axis).
+    const run = doorRuns.find((o) => Math.abs(o.lx - d.x) + Math.abs(o.ly - d.y) === 1);
+    if (run) {
+      run.lx = d.x;
+      run.ly = d.y;
+      run.n++;
+      run.light.x += (d.x + 0.5 - run.light.x) / run.n;
+      run.light.z += (d.y + 0.5 - run.light.z) / run.n;
+    } else {
+      const light = { x: d.x + 0.5, z: d.y + 0.5 };
+      doors.push(light);
+      doorRuns.push({ lx: d.x, ly: d.y, n: 1, light });
+    }
   }
 
   // Walls: merged into one mesh, revealed per chunk.

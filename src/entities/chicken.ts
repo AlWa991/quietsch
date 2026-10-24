@@ -6,7 +6,8 @@ const SPEED = 3.2;
 const ACCEL = 14;
 const HOP_RATE = 3.4; // hops per second
 const HOP_HEIGHT = 0.22;
-const BODY_HALF = 0.28;
+/** Collision circle radius (m); 3-wide doors leave plenty of room (P7). */
+export const BODY_RADIUS = 0.35;
 const TURN = 14;
 
 export interface Chicken {
@@ -86,7 +87,7 @@ export function createChickenEntity(x: number, z: number): Chicken {
       const k = 1 - Math.exp(-ACCEL * dt);
       vel.x += (axis.x * SPEED * slow - vel.x) * k;
       vel.z += (axis.z * SPEED * slow - vel.z) * k;
-      moveAndSlide(grid, pos, vel.x * dt, vel.z * dt, BODY_HALF);
+      moveAndSlide(grid, pos, vel.x * dt, vel.z * dt, BODY_RADIUS);
 
       const speed = Math.hypot(vel.x, vel.z);
       moving = speed > 0.3;

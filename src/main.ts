@@ -35,6 +35,7 @@ import { createBaitHud, createBattery, createCollarHud, createPrompt } from './u
 import { ATTIC_FLAG, createCollar, stepCollar, totalStars, wearCollar } from './core/attic';
 import { PROMPT, rankName, STORY_CARDS, T } from './ui/texts';
 import { buildHouse, placeProps } from './world/builder';
+import { installHalloween } from './world/halloween';
 import {
   ATTIC_ARRIVAL,
   HOUSE_ASCII,
@@ -44,7 +45,7 @@ import {
   roomIdAt,
   SOFA_SPOTS,
 } from './world/house-map';
-import { createChickenEntity } from './entities/chicken';
+import { BODY_RADIUS, createChickenEntity } from './entities/chicken';
 import { createHat } from './entities/hats';
 import { createCameraRig } from './systems/camera';
 import { boxFree, isBlocked, moveAndSlide, type CollisionGrid } from './systems/collision';
@@ -313,7 +314,7 @@ function boot(root: HTMLElement): void {
           const dx = chicken.pos.x - sx;
           const dz = chicken.pos.z - sz;
           const len = Math.hypot(dx, dz) || 1;
-          moveAndSlide(grid, chicken.pos, (dx / len) * 1.2, (dz / len) * 1.2, 0.28);
+          moveAndSlide(grid, chicken.pos, (dx / len) * 1.2, (dz / len) * 1.2, BODY_RADIUS);
         }
         // Geisterlicht tutorial: the first catch anywhere explains the night light. Once.
         if (!store.get().flags['card:peaceHint']) {
@@ -388,6 +389,7 @@ function boot(root: HTMLElement): void {
   const lightning = createLightning(ctx.scene, reveal, {
     onFlash: () => {
       sfx.lightningSting();
+      halloween.onFlash();
       missionsRef?.onFlash(ctx.clock.elapsedTime, roomIdAt(chicken.pos.x, chicken.pos.z));
     },
     onThunder: (i) => ambience.thunder(i),
@@ -395,16 +397,32 @@ function boot(root: HTMLElement): void {
     flash: (v) => postfx.setFlash(v),
   });
 
+  // --- Halloween set dressing (P7 §7) ---------------------------------------------
+  const halloween = installHalloween({
+    scene: ctx.scene,
+    reveal,
+    root,
+    onCandy(x, z) {
+      const s = store.get();
+      if (s.hearts < s.maxHearts) {
+        store.set({ hearts: s.hearts + 1 });
+        ui.hud.sync();
+      }
+      const p = toScreen(x, 1, z);
+      ui.spawnFloat('+1 ♥', p.sx, p.sy, 'feather');
+    },
+  });
+
   // --- Keller: invisible and silent until the hollow wall opens ------------------------
-  const inKeller = (x: number, z: number): boolean => x > 16.5 && x < 25.5 && z > 31.9;
+  const inKeller = (x: number, z: number): boolean => x > 16.5 && x < 27.5 && z > 31.9;
   let kellerOpen = false;
   /** Covers the low Keller walls (part of the merged wall mesh) in the void colour. */
   const kellerCap = new THREE.Mesh(
-    new THREE.PlaneGeometry(9, 6.5),
+    new THREE.PlaneGeometry(11, 7.6),
     new THREE.MeshBasicMaterial({ color: 0x03050b }),
   );
   kellerCap.rotation.x = -Math.PI / 2;
-  kellerCap.position.set(21, 0.37, 35.25);
+  kellerCap.position.set(22, 0.37, 35.7);
   ctx.scene.add(kellerCap);
   const kellerProps: THREE.Object3D[] = [];
   /** Apply the Keller visibility to everything known so far (house, interactables, props). */
@@ -438,12 +456,16 @@ function boot(root: HTMLElement): void {
     punch: (deg) => rig.punch(deg),
     startFinale: () => startFinale(),
     openPassage(cx, cy) {
-      const i = cy * map.width + cx;
-      house.blocked[i] = 0;
-      wallsOnly.blocked[i] = 0;
-      house.mask[i] = 255;
+      const hollow = cx === HOLLOW_CELL.x && cy === HOLLOW_CELL.y;
+      // The hollow wall is three cells wide and sinks as one panel.
+      for (let ox = hollow ? -1 : 0; ox <= (hollow ? 1 : 0); ox++) {
+        const i = cy * map.width + cx + ox;
+        house.blocked[i] = 0;
+        wallsOnly.blocked[i] = 0;
+        house.mask[i] = 255;
+      }
       house.floorMask.needsUpdate = true;
-      if (cx === HOLLOW_CELL.x && cy === HOLLOW_CELL.y) {
+      if (hollow) {
         kellerOpen = true;
         syncKeller();
       }
@@ -877,6 +899,7 @@ function boot(root: HTMLElement): void {
       fog.near += (want.near - fog.near) * k;
       fog.far += (want.far - fog.far) * k;
     }
+    halloween.update(dt, time, chicken.pos.x, chicken.pos.z);
     reveal.update(dt);
     if (endingId === 'A') {
       stormIn -= rawDt;

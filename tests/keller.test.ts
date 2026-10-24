@@ -90,7 +90,7 @@ describe('keller: map', () => {
     const hollow = map.cells.flatMap((row, y) =>
       row.flatMap((c, x) => (c === GridCell.Hollow ? [{ x, y }] : [])),
     );
-    expect(hollow).toEqual([{ x: HOLLOW_CELL.x, y: HOLLOW_CELL.y }]);
+    expect(hollow).toEqual([-1, 0, 1].map((o) => ({ x: HOLLOW_CELL.x + o, y: HOLLOW_CELL.y })));
     expect(roomIdAt(HOLLOW_CELL.x + 0.5, HOLLOW_CELL.y - 0.5)).toBe('flur');
     expect(roomIdAt(HOLLOW_CELL.x + 0.5, HOLLOW_CELL.y + 1.5)).toBe('keller');
     expect(HOLLOW_CELL.y).toBe(CUTAWAY_ROW);
