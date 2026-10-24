@@ -1,11 +1,15 @@
 import { installAudioUnlock } from './context';
 import { createAmbience } from './ambience';
 import { sfx } from './sfx';
+import { createDread } from './dread';
+import { enemySfx } from './enemies-sfx';
+import type { EnemySfxKind } from './enemies-sfx';
 
 /** Debug panel for ?audio=1. */
 export function mountAudioDemo(root: HTMLElement): void {
   installAudioUnlock();
   const amb = createAmbience();
+  const dread = createDread();
   const panel = document.createElement('div');
   panel.id = 'audio-demo';
   panel.style.cssText =
@@ -82,6 +86,57 @@ export function mountAudioDemo(root: HTMLElement): void {
 
   const r5 = row();
   slider(r5, 'danger', 0, 1, 0, 0.01, (v) => amb.setDanger(v));
+
+  const r6 = row();
+  button(r6, 'dread start', () => dread.start());
+  button(r6, 'dread stop', () => dread.stop());
+  button(r6, 'creak', () => dread.creak());
+  button(r6, 'steps overhead', () => dread.footstepsOverhead());
+  button(r6, 'giggle', () => dread.giggle());
+  button(r6, 'door squeak', () => dread.doorSqueak());
+  button(r6, 'breathing on', () => dread.breathing(true));
+  button(r6, 'breathing off', () => dread.breathing(false));
+  button(r6, 'whisper riser 5s', () => dread.whisperRiser(5));
+  button(r6, 'silence 3s', () => dread.silence(3));
+  let dreadTime = 0;
+  const dreadTimer = setInterval(() => {
+    dreadTime += 0.1;
+    dread.update(0.1, { playTime: dreadTime * 10, inKorb: false, danger: 0, room: null });
+  }, 100);
+  void dreadTimer;
+
+  const kinds: EnemySfxKind[] = ['socke', 'hand', 'rudi', 'teddy', 'kuerbis', 'spinne'];
+  const r7 = row();
+  button(r7, 'peckWhoosh', () => enemySfx.peckWhoosh());
+  let peck = 1;
+  button(r7, 'peckHit (n++)', () => {
+    enemySfx.peckHit(peck);
+    peck = peck >= 3 ? 1 : peck + 1;
+  });
+  button(r7, 'playerHurt', () => enemySfx.playerHurt());
+  button(r7, 'feather', () => enemySfx.featherPickup());
+  button(r7, 'streak 2', () => enemySfx.streak(2));
+  button(r7, 'streak 3', () => enemySfx.streak(3));
+  button(r7, 'stun', () => enemySfx.stun());
+
+  const r8 = row();
+  for (const k of kinds) button(r8, 'hurt ' + k, () => enemySfx.hurt(k));
+  const r9 = row();
+  for (const k of kinds) button(r9, 'death ' + k, () => enemySfx.death(k));
+
+  const r10 = row();
+  button(r10, 'teddySwing', () => enemySfx.teddySwing());
+  button(r10, 'roll on', () => enemySfx.pumpkinRoll(true));
+  button(r10, 'roll off', () => enemySfx.pumpkinRoll(false));
+  button(r10, 'beep', () => enemySfx.pumpkinBeep());
+  button(r10, 'pumpkin boom', () => enemySfx.pumpkinExplode());
+  button(r10, 'spiderDrop', () => enemySfx.spiderDrop());
+  button(r10, 'spiderHiss', () => enemySfx.spiderHiss());
+  button(r10, 'rudiStun', () => enemySfx.rudiStun());
+  button(r10, 'rudiExplode', () => enemySfx.rudiExplode());
+  button(r10, 'drums on', () => enemySfx.hordeDrums(true));
+  button(r10, 'drums off', () => enemySfx.hordeDrums(false));
+  button(r10, 'hordeWin', () => enemySfx.hordeWin());
 
   root.appendChild(panel);
 }
